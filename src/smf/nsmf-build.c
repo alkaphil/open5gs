@@ -345,6 +345,11 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
     OpenAPI_ng_ap_cause_t ngApCause;
     OpenAPI_user_location_t ueLocation;
 
+    int rv;
+    ogs_nas_5gs_message_t nas_message;
+    ogs_pkbuf_t *n1SmBufFromUe = NULL;
+    OpenAPI_ref_to_binary_data_t n1SmInfoFromUe;
+
     ogs_assert(sess);
     smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
     ogs_assert(smf_ue);
@@ -398,6 +403,31 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
             ogs_error("No ue_time_zone");
             goto end;
         }
+    }
+
+    ogs_assert(sess->n1smbuf);
+    rv = ogs_nas_5gsm_decode(&nas_message, sess->n1smbuf);
+
+    if (rv == OGS_OK) {
+        n1SmBufFromUe = gsmue_encode_n1_sm_info(&nas_message);
+        message.part[message.num_of_part].pkbuf = n1SmBufFromUe;
+        if (message.part[message.num_of_part].pkbuf) {
+            message.part[message.num_of_part].content_id =
+                (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+            message.part[message.num_of_part].content_type =
+                (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
+            message.num_of_part++;
+
+            n1SmInfoFromUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+            HsmfUpdateData.n1_sm_info_from_ue = &n1SmInfoFromUe;
+        } else {
+            ogs_error("gsm_encode_n1_sm_info() failed [%d]", rv);
+            ogs_log_hexdump(OGS_LOG_ERROR,
+                    sess->n1smbuf->data, sess->n1smbuf->len);
+        }
+    } else {
+        ogs_error("ogs_nas_5gsm_decode() failed [%d]", rv);
+        ogs_log_hexdump(OGS_LOG_ERROR, sess->n1smbuf->data, sess->n1smbuf->len);
     }
 
     message.HsmfUpdateData = &HsmfUpdateData;

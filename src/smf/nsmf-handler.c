@@ -638,6 +638,8 @@ bool smf_nsmf_handle_update_sm_context(
         return false;
     }
 
+    memset(&sess->nsmf_param, 0, sizeof(sess->nsmf_param));
+
     if (SmContextUpdateData->ue_location &&
         SmContextUpdateData->ue_location->nr_location) {
         OpenAPI_nr_location_t *NrLocation =
@@ -658,7 +660,20 @@ bool smf_nsmf_handle_update_sm_context(
                 ogs_plmn_id_hexdump(&sess->nr_cgi.plmn_id),
                 (long long)sess->nr_cgi.cell_id);
         }
+
+        sess->nsmf_param.ue_location = true;
+        sess->nsmf_param.ue_timezone = true;
     }
+
+    if (SmContextUpdateData->ng_ap_cause) {
+        sess->nsmf_param.ngap_cause.group =
+            SmContextUpdateData->ng_ap_cause->group;
+        sess->nsmf_param.ngap_cause.value =
+            SmContextUpdateData->ng_ap_cause->value;
+    }
+    sess->nsmf_param.gmm_cause =
+        SmContextUpdateData->_5g_mm_cause_value;
+    sess->nsmf_param.cause = SmContextUpdateData->cause;
 
     if (SmContextUpdateData->n1_sm_msg) {
         n1SmMsg = SmContextUpdateData->n1_sm_msg;
@@ -684,14 +699,29 @@ bool smf_nsmf_handle_update_sm_context(
         ogs_assert(gsm_header);
         sess->pti = gsm_header->procedure_transaction_identity;
 
-        /*
-         * NOTE : The pkbuf created in the SBI message will be removed
-         *        from ogs_sbi_message_free().
-         *        So it must be copied and push a event queue.
-         */
-        n1smbuf = ogs_pkbuf_copy(n1smbuf);
-        ogs_assert(n1smbuf);
-        nas_5gs_send_to_gsm(sess, stream, n1smbuf);
+        if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+            /* Save N1 SM Message and send it to H-SMF */
+            if (sess->n1smbuf) ogs_pkbuf_free(sess->n1smbuf);
+            sess->n1smbuf = ogs_pkbuf_copy(n1smbuf);
+            ogs_assert(sess->n1smbuf);
+
+            ogs_assert(OGS_OK ==
+                smf_5gc_pfcp_send_all_pdr_modification_request(
+                    sess, stream,
+                    OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
+                    OGS_PFCP_MODIFY_UL_ONLY|
+                    OGS_PFCP_MODIFY_DEACTIVATE,
+                    OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED, 0));
+        } else {
+            /*
+             * NOTE : The pkbuf created in the SBI message will be removed
+             *        from ogs_sbi_message_free().
+             *        So it must be copied and push a event queue.
+             */
+            n1smbuf = ogs_pkbuf_copy(n1smbuf);
+            ogs_assert(n1smbuf);
+            nas_5gs_send_to_gsm(sess, stream, n1smbuf);
+        }
 
         return true;
     
@@ -985,9 +1015,19 @@ bool smf_nsmf_handle_update_sm_context(
                     ogs_sbi_server_send_response(stream, response));
 
         } else {
-            smf_trigger_session_release(
-                    sess, stream,
-                    OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT);
+            if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                ogs_assert(OGS_OK ==
+                    smf_5gc_pfcp_send_all_pdr_modification_request(
+                        sess, stream,
+                        OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
+                        OGS_PFCP_MODIFY_UL_ONLY|
+                        OGS_PFCP_MODIFY_DEACTIVATE,
+                        OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT, 0));
+            } else {
+                smf_trigger_session_release(
+                        sess, stream,
+                        OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT);
+            }
         }
     } else if (SmContextUpdateData->serving_nf_id) {
         ogs_debug("Old amf_nf_id: %s, new amf_nf_id: %s",
@@ -1987,9 +2027,15 @@ bool smf_nsmf_handle_create_data_in_vsmf(
 bool smf_nsmf_handle_update_data_in_hsmf(
     smf_sess_t *sess, ogs_sbi_stream_t *stream, ogs_sbi_message_t *message)
 {
+    int rv;
     smf_ue_t *smf_ue = NULL;
 
     OpenAPI_hsmf_update_data_t *HsmfUpdateData = NULL;
+
+    OpenAPI_ref_to_binary_data_t *n1SmInfoFromUe = NULL;
+
+    ogs_nas_5gs_message_t nas_message;
+    ogs_pkbuf_t *n1SmBufFromUe = NULL;
 
     ogs_assert(stream);
     ogs_assert(message);
@@ -2000,43 +2046,85 @@ bool smf_nsmf_handle_update_data_in_hsmf(
     memset(&sess->nsmf_param, 0, sizeof(sess->nsmf_param));
 
     HsmfUpdateData = message->HsmfUpdateData;
-    if (HsmfUpdateData) {
-        if (HsmfUpdateData->ue_location &&
-            HsmfUpdateData->ue_location->nr_location) {
-            OpenAPI_nr_location_t *NrLocation =
-                HsmfUpdateData->ue_location->nr_location;
-            if (NrLocation->tai &&
-                NrLocation->tai->plmn_id && NrLocation->tai->tac &&
-                NrLocation->ncgi &&
-                NrLocation->ncgi->plmn_id && NrLocation->ncgi->nr_cell_id) {
-
-                ogs_sbi_parse_nr_location(
-                        &sess->nr_tai, &sess->nr_cgi, NrLocation);
-                if (NrLocation->ue_location_timestamp)
-                    ogs_sbi_time_from_string(&sess->ue_location_timestamp,
-                            NrLocation->ue_location_timestamp);
-
-                ogs_debug("    TAI[PLMN_ID:%06x,TAC:%d]",
-                    ogs_plmn_id_hexdump(&sess->nr_tai.plmn_id),
-                    sess->nr_tai.tac.v);
-                ogs_debug("    NR_CGI[PLMN_ID:%06x,CELL_ID:0x%llx]",
-                    ogs_plmn_id_hexdump(&sess->nr_cgi.plmn_id),
-                    (long long)sess->nr_cgi.cell_id);
-            }
-
-            sess->nsmf_param.ue_location = true;
-            sess->nsmf_param.ue_timezone = true;
-        }
-
-        if (HsmfUpdateData->ng_ap_cause) {
-            sess->nsmf_param.ngap_cause.group =
-                HsmfUpdateData->ng_ap_cause->group;
-            sess->nsmf_param.ngap_cause.value =
-                HsmfUpdateData->ng_ap_cause->value;
-        }
-        sess->nsmf_param.gmm_cause = HsmfUpdateData->_5g_mm_cause_value;
-        sess->nsmf_param.cause = HsmfUpdateData->cause;
+    if (!HsmfUpdateData) {
+        ogs_error("[%s:%d] No HsmfUpdateData",
+                smf_ue->supi, sess->psi);
+        smf_sbi_send_pdu_session_create_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No HsmfUpdateData", smf_ue->supi, NULL);
+        return false;
     }
+
+    n1SmInfoFromUe = HsmfUpdateData->n1_sm_info_from_ue;
+    if (!n1SmInfoFromUe || !n1SmInfoFromUe->content_id) {
+        ogs_error("[%s:%d] No n1SmInfoFromUe", smf_ue->supi, sess->psi);
+        smf_sbi_send_pdu_session_create_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No n1SmInfoFromUe", smf_ue->supi, NULL);
+        return false;
+    }
+
+    n1SmBufFromUe = ogs_sbi_find_part_by_content_id(
+            message, n1SmInfoFromUe->content_id);
+    if (!n1SmBufFromUe) {
+        ogs_error("[%s:%d] No N1 SM Content [%s]",
+                smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
+        smf_sbi_send_pdu_session_create_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No N1 SM Content", smf_ue->supi, NULL);
+        return false;
+    }
+
+    rv = gsmue_decode_n1_sm_info(&nas_message, n1SmBufFromUe);
+    if (rv != OGS_OK) {
+        ogs_error("[%s:%d] cannot decode N1 SM Content [%s]",
+                smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
+        ogs_log_hexdump(OGS_LOG_ERROR, n1SmBufFromUe->data, n1SmBufFromUe->len);
+        smf_sbi_send_pdu_session_create_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE,
+                "cannot decode N1 SM Content", smf_ue->supi, NULL);
+        return false;
+    }
+
+    if (HsmfUpdateData->ue_location &&
+        HsmfUpdateData->ue_location->nr_location) {
+        OpenAPI_nr_location_t *NrLocation =
+            HsmfUpdateData->ue_location->nr_location;
+        if (NrLocation->tai &&
+            NrLocation->tai->plmn_id && NrLocation->tai->tac &&
+            NrLocation->ncgi &&
+            NrLocation->ncgi->plmn_id && NrLocation->ncgi->nr_cell_id) {
+
+            ogs_sbi_parse_nr_location(
+                    &sess->nr_tai, &sess->nr_cgi, NrLocation);
+            if (NrLocation->ue_location_timestamp)
+                ogs_sbi_time_from_string(&sess->ue_location_timestamp,
+                        NrLocation->ue_location_timestamp);
+
+            ogs_debug("    TAI[PLMN_ID:%06x,TAC:%d]",
+                ogs_plmn_id_hexdump(&sess->nr_tai.plmn_id),
+                sess->nr_tai.tac.v);
+            ogs_debug("    NR_CGI[PLMN_ID:%06x,CELL_ID:0x%llx]",
+                ogs_plmn_id_hexdump(&sess->nr_cgi.plmn_id),
+                (long long)sess->nr_cgi.cell_id);
+        }
+
+        sess->nsmf_param.ue_location = true;
+        sess->nsmf_param.ue_timezone = true;
+    }
+
+    if (HsmfUpdateData->ng_ap_cause) {
+        sess->nsmf_param.ngap_cause.group =
+            HsmfUpdateData->ng_ap_cause->group;
+        sess->nsmf_param.ngap_cause.value =
+            HsmfUpdateData->ng_ap_cause->value;
+    }
+    sess->nsmf_param.gmm_cause = HsmfUpdateData->_5g_mm_cause_value;
+    sess->nsmf_param.cause = HsmfUpdateData->cause;
 
     return true;
 }

@@ -1549,13 +1549,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                     break;
                 }
 
-                if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
-
-                    ogs_assert(true ==
-                            ogs_sbi_send_http_status_no_content(stream));
-                    OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
-
-                } else if (trigger == OGS_PFCP_DELETE_TRIGGER_LOCAL_INITIATED) {
+                if (trigger == OGS_PFCP_DELETE_TRIGGER_LOCAL_INITIATED) {
 
                     ogs_error("OLD Session Released");
                     OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
@@ -1563,20 +1557,27 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                 } else if (trigger == OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED) {
                     ogs_pkbuf_t *n1smbuf = NULL, *n2smbuf = NULL;
 
-                    n1smbuf = gsm_build_pdu_session_release_command(
-                            sess, OGS_5GSM_CAUSE_REGULAR_DEACTIVATION);
-                    ogs_assert(n1smbuf);
+                    if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+                    } else {
+                        n1smbuf = gsm_build_pdu_session_release_command(
+                                sess, OGS_5GSM_CAUSE_REGULAR_DEACTIVATION);
+                        ogs_assert(n1smbuf);
 
-                    n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
-                            sess, SMF_NGAP_STATE_DELETE_TRIGGER_UE_REQUESTED,
-                            NGAP_Cause_PR_nas, NGAP_CauseNas_normal_release);
-                    ogs_assert(n2smbuf);
+                        n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
+                                sess,
+                                SMF_NGAP_STATE_DELETE_TRIGGER_UE_REQUESTED,
+                                NGAP_Cause_PR_nas,
+                                NGAP_CauseNas_normal_release);
+                        ogs_assert(n2smbuf);
 
-                    ogs_assert(stream);
-                    smf_sbi_send_sm_context_updated_data_n1_n2_message(
-                            sess, stream,
-                            n1smbuf, OpenAPI_n2_sm_info_type_PDU_RES_REL_CMD,
-                            n2smbuf);
+                        ogs_assert(stream);
+                        smf_sbi_send_sm_context_updated_data_n1_n2_message(
+                                sess, stream, n1smbuf,
+                                OpenAPI_n2_sm_info_type_PDU_RES_REL_CMD,
+                                n2smbuf);
+                    }
 
                     OGS_FSM_TRAN(s, smf_gsm_state_wait_5gc_n1_n2_release);
 
@@ -1585,28 +1586,41 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                             trigger ==
                             OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT) {
 
-                    r = smf_sbi_cleanup_session(
-                            sess, stream,
-                            SMF_UECM_STATE_DEREGISTERED_BY_AMF,
-                            SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
-                    ogs_expect(r == OGS_OK);
-                    ogs_assert(r != OGS_ERROR);
+                    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+                        OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
+                    } else {
+                        r = smf_sbi_cleanup_session(
+                                sess, stream,
+                                SMF_UECM_STATE_DEREGISTERED_BY_AMF,
+                                SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+                        ogs_expect(r == OGS_OK);
+                        ogs_assert(r != OGS_ERROR);
 
-                    OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
+                        OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
+                    }
 
                 } else if (trigger == OGS_PFCP_DELETE_TRIGGER_PCF_INITIATED) {
-                    smf_n1_n2_message_transfer_param_t param;
+                    if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+                    } else {
+                        smf_n1_n2_message_transfer_param_t param;
 
-                    memset(&param, 0, sizeof(param));
-                    param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
-                    param.n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
-                            sess, SMF_NGAP_STATE_DELETE_TRIGGER_PCF_INITIATED,
-                            NGAP_Cause_PR_nas, NGAP_CauseNas_normal_release);
-                    ogs_assert(param.n2smbuf);
+                        memset(&param, 0, sizeof(param));
+                        param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+                        param.n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
+                                sess,
+                                SMF_NGAP_STATE_DELETE_TRIGGER_PCF_INITIATED,
+                                NGAP_Cause_PR_nas,
+                                NGAP_CauseNas_normal_release);
+                        ogs_assert(param.n2smbuf);
 
-                    param.skip_ind = true;
+                        param.skip_ind = true;
 
-                    smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                        smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                    }
 
                     OGS_FSM_TRAN(s, smf_gsm_state_wait_5gc_n1_n2_release);
                 } else {

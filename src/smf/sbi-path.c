@@ -993,3 +993,21 @@ void smf_sbi_send_pdu_session_create_error(
     if (n1SmBufToUe)
         ogs_pkbuf_free(n1SmBufToUe);
 }
+
+void smf_sbi_send_released_data(
+        smf_sess_t *sess, ogs_sbi_stream_t *stream)
+{
+    OpenAPI_released_data_t ReleasedData;
+
+    ogs_sbi_message_t sendmsg;
+    ogs_sbi_response_t *response = NULL;
+
+    memset(&ReleasedData, 0, sizeof(ReleasedData));
+    memset(&sendmsg, 0, sizeof(sendmsg));
+
+    sendmsg.ReleasedData = &ReleasedData;
+
+    response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
+    ogs_assert(response);
+    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+}

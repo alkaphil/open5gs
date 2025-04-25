@@ -136,6 +136,9 @@ void smf_sbi_send_pdu_session_create_error(
         const char *title, const char *detail,
         ogs_pkbuf_t *n1SmBufToUe);
 
+void smf_sbi_send_released_data(
+        smf_sess_t *sess, ogs_sbi_stream_t *stream);
+
 #ifdef __cplusplus
 }
 #endif

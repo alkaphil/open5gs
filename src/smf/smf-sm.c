@@ -958,13 +958,13 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
             ogs_assert(smf_ue);
 
             if (state == SMF_UECM_STATE_REGISTERED ||
-                state == SMF_UECM_STATE_REGISTERED_BY_HOME_ROUTED_ROAMING) {
+                state == SMF_UECM_STATE_REGISTERED_HR) {
                 /* SMF Registration */
                 if (sbi_message.res_status != OGS_SBI_HTTP_STATUS_OK &&
                     sbi_message.res_status != OGS_SBI_HTTP_STATUS_CREATED)
                     unknown_res_status = true;
-            } else if (state == SMF_UECM_STATE_DEREGISTERED_BY_AMF ||
-                        state == SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE) {
+            } else if (state == SMF_UECM_STATE_DEREG_BY_AMF ||
+                        state == SMF_UECM_STATE_DEREG_BY_N1N2) {
                 /* SMF Deregistration */
                 if (sbi_message.res_status != OGS_SBI_HTTP_STATUS_NO_CONTENT)
                     unknown_res_status = true;
@@ -993,18 +993,17 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 /* SMF Registration */
                 ogs_assert(stream);
                 ogs_assert(true == ogs_sbi_send_http_status_no_content(stream));
-            } else if (state ==
-                    SMF_UECM_STATE_REGISTERED_BY_HOME_ROUTED_ROAMING) {
+            } else if (state == SMF_UECM_STATE_REGISTERED_HR) {
                 smf_sbi_send_pdu_session_created_data(sess, stream);
                 smf_metrics_inst_by_slice_add(
                         &sess->serving_plmn_id, &sess->s_nssai,
                         SMF_METR_CTR_SM_PDUSESSIONCREATIONSUCC, 1);
-            } else if (state == SMF_UECM_STATE_DEREGISTERED_BY_AMF) {
+            } else if (state == SMF_UECM_STATE_DEREG_BY_AMF) {
                 /* SMF Deregistration */
                 ogs_assert(stream);
                 ogs_assert(true == ogs_sbi_send_http_status_no_content(stream));
                 SMF_SESS_CLEAR(sess);
-            } else if (state == SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE) {
+            } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2) {
                 /* SMF Deregistration */
                 ogs_assert(true == smf_sbi_send_sm_context_status_notify(sess));
                 SMF_SESS_CLEAR(sess);

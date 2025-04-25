@@ -821,7 +821,7 @@ void smf_gsm_state_wait_pfcp_establishment(ogs_fsm_t *s, smf_event_t *e)
                             OGS_SBI_SERVICE_TYPE_NUDM_UECM, NULL,
                             smf_nudm_uecm_build_registration,
                             sess, stream,
-                            SMF_UECM_STATE_REGISTERED_BY_HOME_ROUTED_ROAMING,
+                            SMF_UECM_STATE_REGISTERED_HR,
                             NULL);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -1593,7 +1593,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                     } else {
                         r = smf_sbi_cleanup_session(
                                 sess, stream,
-                                SMF_UECM_STATE_DEREGISTERED_BY_AMF,
+                                SMF_UECM_STATE_DEREG_BY_AMF,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
                         ogs_assert(r != OGS_ERROR);
@@ -1884,7 +1884,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
 
                     r = smf_sbi_cleanup_session(
                             sess, stream,
-                            SMF_UECM_STATE_DEREGISTERED_BY_AMF,
+                            SMF_UECM_STATE_DEREG_BY_AMF,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -2058,7 +2058,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                 if ((sess->n1_released) && (sess->n2_released)) {
                     r = smf_sbi_cleanup_session(
                             sess, NULL,
-                            SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE,
+                            SMF_UECM_STATE_DEREG_BY_N1N2,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -2098,7 +2098,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             if ((sess->n1_released) && (sess->n2_released)) {
                 r = smf_sbi_cleanup_session(
                         sess, NULL,
-                        SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE,
+                        SMF_UECM_STATE_DEREG_BY_N1N2,
                         SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                 ogs_expect(r == OGS_OK);
                 ogs_assert(r != OGS_ERROR);

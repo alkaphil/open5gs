@@ -1069,19 +1069,6 @@ bool smf_nsmf_handle_release_sm_context(
         sess->nsmf_param.cause = SmContextReleaseData->cause;
     }
 
-    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
-        ogs_assert(OGS_OK ==
-            smf_5gc_pfcp_send_all_pdr_modification_request(
-                sess, stream,
-                OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
-                OGS_PFCP_MODIFY_UL_ONLY|OGS_PFCP_MODIFY_DEACTIVATE,
-                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT, 0));
-    } else {
-        smf_trigger_session_release(
-                sess, stream,
-                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT);
-    }
-
     return true;
 }
 

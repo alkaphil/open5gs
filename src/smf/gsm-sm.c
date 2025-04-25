@@ -35,6 +35,7 @@
 #include "pfcp-path.h"
 #include "ngap-path.h"
 #include "fd-path.h"
+#include "local-path.h"
 
 static uint8_t gtp_cause_from_diameter(uint8_t gtp_version,
         const uint32_t dia_err, const uint32_t *dia_exp_err)
@@ -1051,6 +1052,21 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
                     smf_nsmf_handle_release_sm_context(
                             sess, stream, sbi_message);
+
+                    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                        ogs_assert(OGS_OK ==
+                            smf_5gc_pfcp_send_all_pdr_modification_request(
+                                sess, stream,
+                                OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
+                                OGS_PFCP_MODIFY_UL_ONLY|
+                                OGS_PFCP_MODIFY_DEACTIVATE,
+                                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT,
+                                0));
+                    } else {
+                        smf_trigger_session_release(
+                                sess, stream,
+                                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT);
+                    }
                     break;
                 DEFAULT
                     ogs_error("Invalid resource name [%s]",
@@ -1792,6 +1808,9 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
     sess = smf_sess_find_by_id(e->sess_id);
     ogs_assert(sess);
 
+    smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
+    ogs_assert(smf_ue);
+
     switch (e->h.id) {
     case OGS_FSM_ENTRY_SIG:
         break;
@@ -1820,6 +1839,27 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                 break;
             CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
                 smf_nsmf_handle_release_sm_context(sess, stream, sbi_message);
+
+                if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                    ogs_assert(OGS_OK ==
+                        smf_5gc_pfcp_send_all_pdr_modification_request(
+                            sess, stream,
+                            OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
+                            OGS_PFCP_MODIFY_UL_ONLY|OGS_PFCP_MODIFY_DEACTIVATE,
+                            OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT, 0));
+                } else {
+                    ogs_warn("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
+                        smf_ue->supi, sess->psi, e->h.sbi.state);
+
+                    r = smf_sbi_cleanup_session(
+                            sess, stream,
+                            SMF_UECM_STATE_DEREGISTERED_BY_AMF,
+                            SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+                    ogs_expect(r == OGS_OK);
+                    ogs_assert(r != OGS_ERROR);
+
+                    OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
+                }
                 break;
             DEFAULT
                 ogs_error("Invalid resource name [%s]",
@@ -1847,9 +1887,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
     case OGS_EVENT_SBI_CLIENT:
         sbi_message = e->h.sbi.message;
         ogs_assert(sbi_message);
-
-        smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
-        ogs_assert(smf_ue);
 
         SWITCH(sbi_message->h.service.name)
         CASE(OGS_SBI_SERVICE_NAME_NAMF_COMM)
@@ -1931,8 +1968,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
         break;
 
     case SMF_EVT_NGAP_MESSAGE:
-        smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
-        ogs_assert(smf_ue);
         pkbuf = e->pkbuf;
         ogs_assert(pkbuf);
         ogs_assert(e->ngap.type);
@@ -2013,8 +2048,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
     case SMF_EVT_5GSM_MESSAGE:
         nas_message = e->nas.message;
         ogs_assert(nas_message);
-        smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
-        ogs_assert(smf_ue);
 
         stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
         ogs_assert(stream_id >= OGS_MIN_POOL_ID &&
@@ -2055,32 +2088,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     NULL, NULL));
             ogs_free(strerror);
         }
-        break;
-    case SMF_EVT_SESSION_RELEASE:
-        smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
-        ogs_assert(smf_ue);
-
-        ogs_warn("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
-            smf_ue->supi, sess->psi, e->h.sbi.state);
-
-        stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-        ogs_assert(stream_id >= OGS_MIN_POOL_ID &&
-                stream_id <= OGS_MAX_POOL_ID);
-
-        stream = ogs_sbi_stream_find_by_id(stream_id);
-        if (!stream) {
-            ogs_error("STREAM has already been removed [%d]", stream_id);
-            break;
-        }
-
-        r = smf_sbi_cleanup_session(
-                sess, stream,
-                SMF_UECM_STATE_DEREGISTERED_BY_AMF,
-                SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
-        ogs_expect(r == OGS_OK);
-        ogs_assert(r != OGS_ERROR);
-
-        OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
         break;
 
     default:

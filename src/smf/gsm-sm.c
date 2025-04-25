@@ -1370,7 +1370,7 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
         smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
         ogs_assert(smf_ue);
 
-        ogs_error("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
+        ogs_info("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
             smf_ue->supi, sess->psi, e->h.sbi.state);
 
         if (e->h.sbi.state == OGS_PFCP_DELETE_TRIGGER_SMF_INITIATED) {
@@ -2056,6 +2056,35 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             ogs_free(strerror);
         }
         break;
+    case SMF_EVT_SESSION_RELEASE:
+        smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
+        ogs_assert(smf_ue);
+
+        ogs_warn("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
+            smf_ue->supi, sess->psi, e->h.sbi.state);
+
+        stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
+        ogs_assert(stream_id >= OGS_MIN_POOL_ID &&
+                stream_id <= OGS_MAX_POOL_ID);
+
+        stream = ogs_sbi_stream_find_by_id(stream_id);
+        if (!stream) {
+            ogs_error("STREAM has already been removed [%d]", stream_id);
+            break;
+        }
+
+        r = smf_sbi_cleanup_session(
+                sess, stream,
+                SMF_UECM_STATE_DEREGISTERED_BY_AMF,
+                SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+        ogs_expect(r == OGS_OK);
+        ogs_assert(r != OGS_ERROR);
+
+        OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
+        break;
+
+    default:
+        ogs_error("Unknown event [%s]", smf_event_get_name(e));
     }
 }
 

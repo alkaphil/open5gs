@@ -108,6 +108,7 @@ typedef struct ogs_pfcp_xact_s {
 #define OGS_PFCP_MODIFY_XN_HANDOVER ((uint64_t)1<<22)
 #define OGS_PFCP_MODIFY_N2_HANDOVER ((uint64_t)1<<23)
 #define OGS_PFCP_MODIFY_HANDOVER_CANCEL ((uint64_t)1<<24)
+#define OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING ((uint64_t)1<<25)
 #define OGS_PFCP_MODIFY_URR  ((uint64_t)1<<26) /* type of trigger */
 #define OGS_PFCP_MODIFY_URR_MEAS_METHOD ((uint64_t)1<<27)
 #define OGS_PFCP_MODIFY_URR_REPORT_TRIGGER ((uint64_t)1<<28)

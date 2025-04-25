@@ -427,7 +427,7 @@ void smf_5gc_n4_handle_session_modification_response(
 
             smf_sbi_send_sm_context_updated_data_ho_state(
                     sess, stream, OpenAPI_ho_state_COMPLETED);
-        } else if (flags & OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING) {
+        } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
             if (flags & OGS_PFCP_MODIFY_DL_ONLY) {
                 if (sess->up_cnx_state == OpenAPI_up_cnx_state_ACTIVATING) {
                     sess->up_cnx_state = OpenAPI_up_cnx_state_ACTIVATED;
@@ -485,7 +485,7 @@ void smf_5gc_n4_handle_session_modification_response(
             param.skip_ind = true;
 
             smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
-        } else if (flags & OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING) {
+        } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
             int r;
             ogs_assert(trigger);
 

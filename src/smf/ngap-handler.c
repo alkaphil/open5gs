@@ -146,15 +146,14 @@ int ngap_handle_pdu_session_resource_setup_response_transfer(
     }
 
     if (far_update) {
+        uint64_t flag = OGS_PFCP_MODIFY_DL_ONLY|OGS_PFCP_MODIFY_ACTIVATE;
+
+        if (HOME_ROUTED_ROAMING_IN_VSMF(sess))
+            flag |= OGS_PFCP_MODIFY_OUTER_HEADER_REMOVAL;
+
         ogs_assert(OGS_OK ==
             smf_5gc_pfcp_send_all_pdr_modification_request(
-                sess, stream,
-                HOME_ROUTED_ROAMING_IN_VSMF(sess) ?
-                    (OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
-                     OGS_PFCP_MODIFY_DL_ONLY|
-                     OGS_PFCP_MODIFY_OUTER_HEADER_REMOVAL|
-                     OGS_PFCP_MODIFY_ACTIVATE) :
-                    (OGS_PFCP_MODIFY_DL_ONLY|OGS_PFCP_MODIFY_ACTIVATE), 0, 0));
+                sess, stream, flag, 0, 0));
     } else {
 #if 0 /* Modified by pull request #1729 */
         /* ACTIVATED Is NOT Included in RESPONSE */

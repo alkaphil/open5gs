@@ -1057,15 +1057,14 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                         ogs_assert(OGS_OK ==
                             smf_5gc_pfcp_send_all_pdr_modification_request(
                                 sess, stream,
-                                OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
                                 OGS_PFCP_MODIFY_UL_ONLY|
                                 OGS_PFCP_MODIFY_DEACTIVATE,
                                 OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT,
                                 0));
                     } else {
-                        smf_trigger_session_release(
-                                sess, stream,
-                                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT);
+                        e->h.sbi.state =
+                            OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT;
+                        OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
                     }
                     break;
                 DEFAULT
@@ -1084,11 +1083,20 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
                     smf_nsmf_handle_update_data_in_hsmf(
                             sess, stream, sbi_message);
+
+                    e->h.sbi.state = OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED;
+                    OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
                     break;
+
                 CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
                     smf_nsmf_handle_release_data_in_hsmf(
                             sess, stream, sbi_message);
+
+                    e->h.sbi.state =
+                        OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT;
+                    OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
                     break;
+
                 DEFAULT
                     ogs_error("Invalid resource name [%s]",
                                 sbi_message->h.resource.component[2]);
@@ -1240,7 +1248,6 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 ogs_assert(OGS_OK ==
                     smf_5gc_pfcp_send_all_pdr_modification_request(
                         sess, stream,
-                        OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
                         OGS_PFCP_MODIFY_UL_ONLY|OGS_PFCP_MODIFY_DEACTIVATE,
                         e->h.sbi.state, 0));
             } else {
@@ -1856,7 +1863,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     ogs_assert(OGS_OK ==
                         smf_5gc_pfcp_send_all_pdr_modification_request(
                             sess, stream,
-                            OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
                             OGS_PFCP_MODIFY_UL_ONLY|OGS_PFCP_MODIFY_DEACTIVATE,
                             OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT, 0));
                 } else {

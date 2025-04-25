@@ -893,8 +893,6 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
     uint8_t gtp1_cause, gtp2_cause;
     bool release;
 
-    int state = 0;
-
     ogs_assert(s);
     ogs_assert(e);
 
@@ -1117,130 +1115,6 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
         ogs_assert(smf_ue);
 
         SWITCH(sbi_message->h.service.name)
-        CASE(OGS_SBI_SERVICE_NAME_NPCF_SMPOLICYCONTROL)
-            stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-            if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
-                stream = ogs_sbi_stream_find_by_id(stream_id);
-
-            state = e->h.sbi.state;
-
-            SWITCH(sbi_message->h.resource.component[0])
-            CASE(OGS_SBI_RESOURCE_NAME_SM_POLICIES)
-                if (!sbi_message->h.resource.component[1]) {
-                    ogs_assert(stream);
-                    strerror = ogs_msprintf(
-                            "[%s:%d] HTTP response error [%d]",
-                            smf_ue->supi, sess->psi,
-                            sbi_message->res_status);
-                    ogs_assert(strerror);
-
-                    ogs_error("%s", strerror);
-                    ogs_assert(true ==
-                        ogs_sbi_server_send_error(
-                            stream, sbi_message->res_status,
-                            sbi_message, strerror, NULL,
-                            (sbi_message->ProblemDetails) ?
-                                    sbi_message->ProblemDetails->cause : NULL));
-                    ogs_free(strerror);
-
-                    OGS_FSM_TRAN(s, smf_gsm_state_exception);
-                    break;
-                } else {
-                    SWITCH(sbi_message->h.resource.component[2])
-                    CASE(OGS_SBI_RESOURCE_NAME_DELETE)
-                        PCF_SM_POLICY_CLEAR(sess);
-
-                        if (sbi_message->res_status !=
-                                OGS_SBI_HTTP_STATUS_NO_CONTENT) {
-                            ogs_error("[%s:%d] HTTP response error [%d]",
-                                    smf_ue->supi, sess->psi,
-                                    sbi_message->res_status);
-                            /* In spite of error from PCF, continue with
-                               session teardown, so as to not leave stale
-                               sessions. */
-                        }
-
-                        if (state == OGS_PFCP_DELETE_TRIGGER_SMF_INITIATED) {
-                            OGS_FSM_TRAN(&sess->sm, smf_gsm_state_wait_5gc_n1_n2_release);
-
-                            smf_n1_n2_message_transfer_param_t param;
-
-                            memset(&param, 0, sizeof(param));
-                            param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
-                            sess->pti = OGS_NAS_PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED;
-                            param.n1smbuf = gsm_build_pdu_session_release_command(
-                                sess, OGS_5GSM_CAUSE_REACTIVATION_REQUESTED);
-                            ogs_assert(param.n1smbuf);
-
-                            param.n2smbuf =
-                                ngap_build_pdu_session_resource_release_command_transfer(
-                                    sess, SMF_NGAP_STATE_DELETE_TRIGGER_SMF_INITIATED,
-                                    NGAP_Cause_PR_nas, NGAP_CauseNas_normal_release);
-                            ogs_assert(param.n2smbuf);
-
-    /*
-     * Skip_ind is not used when changing the PDU Session Anchor.
-     * param.skip_ind = false;
-     *
-     * TS23.502
-     * 4.3.4 PDU Session Release
-     * 4.3.4.2 UE or network requested PDU Session Release for Non-Roaming
-     * and Roaming with Local Breakout
-     *
-     * 3b. ...
-     *
-     * The "skip indicator" tells the AMF whether it may skip sending
-     * the N1 SM container to the UE (e.g. when the UE is in CM-IDLE state).
-     * SMF includes the "skip indicator"
-     * in the Namf_Communication_N1N2MessageTransfer
-     * except when the procedure is triggered to change PDU Session Anchor
-     * of a PDU Session with SSC mode 2.
-     *
-     * Related Issue #2396
-     */
-
-                            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
-                        } else {
-                            OGS_FSM_TRAN(&sess->sm,
-                                    &smf_gsm_state_wait_pfcp_deletion);
-                        }
-                        break;
-
-                    DEFAULT
-                        strerror = ogs_msprintf("[%s:%d] "
-                                "Unknown resource name [%s]",
-                                smf_ue->supi, sess->psi,
-                                sbi_message->h.resource.component[2]);
-                        ogs_assert(strerror);
-
-                        ogs_error("%s", strerror);
-                        if (stream)
-                            ogs_assert(true ==
-                                ogs_sbi_server_send_error(stream,
-                                    OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                                    sbi_message, strerror, NULL, NULL));
-                        ogs_free(strerror);
-                        OGS_FSM_TRAN(s, smf_gsm_state_exception);
-                    END
-                }
-                break;
-
-            DEFAULT
-                strerror = ogs_msprintf("[%s:%d] Invalid resource name [%s]",
-                        smf_ue->supi, sess->psi,
-                        sbi_message->h.resource.component[0]);
-                ogs_assert(strerror);
-
-                ogs_error("%s", strerror);
-                ogs_assert(true ==
-                    ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                        sbi_message, strerror, NULL, NULL));
-                ogs_free(strerror);
-                OGS_FSM_TRAN(s, smf_gsm_state_exception);
-            END
-            break;
-
         CASE(OGS_SBI_SERVICE_NAME_NAMF_COMM)
             SWITCH(sbi_message->h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_UE_CONTEXTS)
@@ -1260,8 +1134,6 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
             stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
             if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
                 stream = ogs_sbi_stream_find_by_id(stream_id);
-
-            state = e->h.sbi.state;
 
             SWITCH(sbi_message->h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_PDU_SESSIONS)
@@ -1501,7 +1373,49 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
         ogs_error("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
             smf_ue->supi, sess->psi, e->h.sbi.state);
 
-        OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
+        if (e->h.sbi.state == OGS_PFCP_DELETE_TRIGGER_SMF_INITIATED) {
+            smf_n1_n2_message_transfer_param_t param;
+
+            memset(&param, 0, sizeof(param));
+            param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+            sess->pti = OGS_NAS_PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED;
+            param.n1smbuf = gsm_build_pdu_session_release_command(
+                sess, OGS_5GSM_CAUSE_REACTIVATION_REQUESTED);
+            ogs_assert(param.n1smbuf);
+
+            param.n2smbuf =
+                ngap_build_pdu_session_resource_release_command_transfer(
+                    sess, SMF_NGAP_STATE_DELETE_TRIGGER_SMF_INITIATED,
+                    NGAP_Cause_PR_nas, NGAP_CauseNas_normal_release);
+            ogs_assert(param.n2smbuf);
+
+    /*
+     * Skip_ind is not used when changing the PDU Session Anchor.
+     * param.skip_ind = false;
+     *
+     * TS23.502
+     * 4.3.4 PDU Session Release
+     * 4.3.4.2 UE or network requested PDU Session Release for Non-Roaming
+     * and Roaming with Local Breakout
+     *
+     * 3b. ...
+     *
+     * The "skip indicator" tells the AMF whether it may skip sending
+     * the N1 SM container to the UE (e.g. when the UE is in CM-IDLE state).
+     * SMF includes the "skip indicator"
+     * in the Namf_Communication_N1N2MessageTransfer
+     * except when the procedure is triggered to change PDU Session Anchor
+     * of a PDU Session with SSC mode 2.
+     *
+     * Related Issue #2396
+     */
+
+            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+
+            OGS_FSM_TRAN(&sess->sm, smf_gsm_state_wait_5gc_n1_n2_release);
+        } else {
+            OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
+        }
         break;
 
     default:
@@ -1547,14 +1461,8 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
         } else {
             /* 5GC */
             stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-            ogs_assert(stream_id >= OGS_MIN_POOL_ID &&
-                    stream_id <= OGS_MAX_POOL_ID);
-
-            stream = ogs_sbi_stream_find_by_id(stream_id);
-            if (!stream) {
-                ogs_error("STREAM has already been removed [%d]", stream_id);
-                break;
-            }
+            if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
+                stream = ogs_sbi_stream_find_by_id(stream_id);
 
             ogs_assert(OGS_OK ==
                 smf_5gc_pfcp_send_session_deletion_request(
@@ -1657,7 +1565,8 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                             OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT) {
 
                     r = smf_sbi_cleanup_session(
-                            sess, stream, trigger,
+                            sess, stream,
+                            SMF_UECM_STATE_DEREGISTERED_BY_AMF,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -1873,7 +1782,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
     ogs_pool_id_t stream_id = OGS_INVALID_POOL_ID;
     ogs_sbi_message_t *sbi_message = NULL;
 
-    int r, state = 0;
+    int r;
 
     ogs_assert(s);
     ogs_assert(e);
@@ -1965,14 +1874,8 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             ogs_pkbuf_t *n1smbuf = NULL;
 
             stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-            ogs_assert(stream_id >= OGS_MIN_POOL_ID &&
-                    stream_id <= OGS_MAX_POOL_ID);
-
-            stream = ogs_sbi_stream_find_by_id(stream_id);
-            if (!stream) {
-                ogs_error("STREAM has already been removed [%d]", stream_id);
-                break;
-            }
+            if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
+                stream = ogs_sbi_stream_find_by_id(stream_id);
 
             ogs_error("[%s:%d] state [%d] res_status [%d]",
                 smf_ue->supi, sess->psi,
@@ -1992,8 +1895,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
                 stream = ogs_sbi_stream_find_by_id(stream_id);
 
-            state = e->h.sbi.state;
-
             SWITCH(sbi_message->h.resource.component[1])
             CASE(OGS_SBI_RESOURCE_NAME_SDM_SUBSCRIPTIONS)
                 SWITCH(sbi_message->h.method)
@@ -2002,7 +1903,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     UDM_SDM_CLEAR(sess);
 
                     r = smf_sbi_cleanup_session(
-                            sess, stream, state,
+                            sess, stream, e->h.sbi.state,
                             SMF_SBI_CLEANUP_MODE_CONTEXT_ONLY);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -2090,7 +1991,8 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                 sess->n2_released = true;
                 if ((sess->n1_released) && (sess->n2_released)) {
                     r = smf_sbi_cleanup_session(
-                            sess, stream, OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED,
+                            sess, NULL,
+                            SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -2131,7 +2033,8 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             sess->n1_released = true;
             if ((sess->n1_released) && (sess->n2_released)) {
                 r = smf_sbi_cleanup_session(
-                        sess, stream, OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED,
+                        sess, NULL,
+                        SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE,
                         SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                 ogs_expect(r == OGS_OK);
                 ogs_assert(r != OGS_ERROR);
@@ -2282,7 +2185,7 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
     ogs_pool_id_t stream_id = OGS_INVALID_POOL_ID;
     ogs_sbi_message_t *sbi_message = NULL;
 
-    int r, state = 0;
+    int r;
 
     ogs_assert(s);
     ogs_assert(e);
@@ -2354,8 +2257,6 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
         if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
             stream = ogs_sbi_stream_find_by_id(stream_id);
 
-        state = e->h.sbi.state;
-
         SWITCH(sbi_message->h.service.name)
         CASE(OGS_SBI_SERVICE_NAME_NPCF_SMPOLICYCONTROL)
             SWITCH(sbi_message->h.resource.component[0])
@@ -2395,7 +2296,7 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
                         }
 
                         r = smf_sbi_cleanup_session(
-                                sess, stream, state,
+                                sess, stream, e->h.sbi.state,
                                 SMF_SBI_CLEANUP_MODE_SUBSCRIPTION_FIRST);
                         ogs_expect(r == OGS_OK);
                         ogs_assert(r != OGS_ERROR);
@@ -2446,7 +2347,7 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
                     UDM_SDM_CLEAR(sess);
 
                     r = smf_sbi_cleanup_session(
-                            sess, stream, state,
+                            sess, stream, e->h.sbi.state,
                             SMF_SBI_CLEANUP_MODE_CONTEXT_ONLY);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);

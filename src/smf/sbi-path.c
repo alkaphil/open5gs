@@ -833,7 +833,6 @@ int smf_sbi_cleanup_session(
 {
     smf_ue_t *smf_ue = NULL;
     int r = OGS_ERROR;
-    int udm_state = SMF_UECM_STATE_NONE;
 
     ogs_assert(mode);
 
@@ -842,11 +841,6 @@ int smf_sbi_cleanup_session(
     ogs_assert(smf_ue);
 
     ogs_assert(state);
-    if (state == OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT ||
-            state == OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT)
-        udm_state = SMF_UECM_STATE_DEREGISTERED_BY_AMF;
-    else
-        udm_state = SMF_UECM_STATE_DEREGISTERED_BY_N1_N2_RELEASE;
 
     switch (mode) {
     case SMF_SBI_CLEANUP_MODE_POLICY_FIRST:
@@ -875,7 +869,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_UECM,
                 NULL,
                 smf_nudm_uecm_build_deregistration,
-                sess, stream, udm_state, NULL);
+                sess, stream, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         }
@@ -897,7 +891,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_UECM,
                 NULL,
                 smf_nudm_uecm_build_deregistration,
-                sess, stream, udm_state, NULL);
+                sess, stream, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         }
@@ -908,7 +902,7 @@ int smf_sbi_cleanup_session(
             OGS_SBI_SERVICE_TYPE_NUDM_UECM,
             NULL,
             smf_nudm_uecm_build_deregistration,
-            sess, stream, udm_state, NULL);
+            sess, stream, state, NULL);
         ogs_expect(r == OGS_OK);
         ogs_assert(r != OGS_ERROR);
         break;

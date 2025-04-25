@@ -1838,6 +1838,18 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                 smf_nsmf_handle_update_sm_context(sess, stream, sbi_message);
                 break;
             CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
+            /*
+             * Session release is initiated by a PDU Session Release Request.
+             * The AMF sends a PDUSessionReleaseCommand to the UE, but the UE
+             * does not send a PDU Session Release Complete or
+             * PDUSessionResourceReleaseResponse back to the AMF.
+             *
+             * As a result, the context remains in the
+             * smf_gsm_state_wait_5gc_n1_n2_release state.
+             *
+             * When the UE then sends a Deregistration request in this state,
+             * smf_nsmf_handle_release_sm_context() is invoked.
+             */
                 smf_nsmf_handle_release_sm_context(sess, stream, sbi_message);
 
                 if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {

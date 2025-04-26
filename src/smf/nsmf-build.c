@@ -365,8 +365,8 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
     memset(&ngApCause, 0, sizeof(ngApCause));
     memset(&ueLocation, 0, sizeof(ueLocation));
 
-    HsmfUpdateData.request_indication =
-        OpenAPI_request_indication_UE_REQ_PDU_SES_REL;
+    HsmfUpdateData.request_indication = sess->nsmf_param.request_indication;
+    ogs_assert(HsmfUpdateData.request_indication);
 
     HsmfUpdateData.cause = sess->nsmf_param.cause;
 
@@ -405,29 +405,31 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
         }
     }
 
-    ogs_assert(sess->n1smbuf);
-    rv = ogs_nas_5gsm_decode(&nas_message, sess->n1smbuf);
+    if (sess->n1smbuf) {
+        rv = ogs_nas_5gsm_decode(&nas_message, sess->n1smbuf);
 
-    if (rv == OGS_OK) {
-        n1SmBufFromUe = gsmue_encode_n1_sm_info(&nas_message);
-        message.part[message.num_of_part].pkbuf = n1SmBufFromUe;
-        if (message.part[message.num_of_part].pkbuf) {
-            message.part[message.num_of_part].content_id =
-                (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
-            message.part[message.num_of_part].content_type =
-                (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
-            message.num_of_part++;
+        if (rv == OGS_OK) {
+            n1SmBufFromUe = gsmue_encode_n1_sm_info(&nas_message);
+            message.part[message.num_of_part].pkbuf = n1SmBufFromUe;
+            if (message.part[message.num_of_part].pkbuf) {
+                message.part[message.num_of_part].content_id =
+                    (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+                message.part[message.num_of_part].content_type =
+                    (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
+                message.num_of_part++;
 
-            n1SmInfoFromUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
-            HsmfUpdateData.n1_sm_info_from_ue = &n1SmInfoFromUe;
+                n1SmInfoFromUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+                HsmfUpdateData.n1_sm_info_from_ue = &n1SmInfoFromUe;
+            } else {
+                ogs_error("gsm_encode_n1_sm_info() failed [%d]", rv);
+                ogs_log_hexdump(OGS_LOG_ERROR,
+                        sess->n1smbuf->data, sess->n1smbuf->len);
+            }
         } else {
-            ogs_error("gsm_encode_n1_sm_info() failed [%d]", rv);
+            ogs_error("ogs_nas_5gsm_decode() failed [%d]", rv);
             ogs_log_hexdump(OGS_LOG_ERROR,
                     sess->n1smbuf->data, sess->n1smbuf->len);
         }
-    } else {
-        ogs_error("ogs_nas_5gsm_decode() failed [%d]", rv);
-        ogs_log_hexdump(OGS_LOG_ERROR, sess->n1smbuf->data, sess->n1smbuf->len);
     }
 
     message.HsmfUpdateData = &HsmfUpdateData;

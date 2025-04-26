@@ -705,6 +705,10 @@ bool smf_nsmf_handle_update_sm_context(
             sess->n1smbuf = ogs_pkbuf_copy(n1smbuf);
             ogs_assert(sess->n1smbuf);
 
+            /* UE Requested PDU Session Release */
+            sess->nsmf_param.request_indication =
+                OpenAPI_request_indication_UE_REQ_PDU_SES_REL;
+
             ogs_assert(OGS_OK ==
                 smf_5gc_pfcp_send_all_pdr_modification_request(
                     sess, stream,
@@ -1016,6 +1020,16 @@ bool smf_nsmf_handle_update_sm_context(
 
         } else {
             if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                /* Network Initiated PDU Session Release */
+                sess->nsmf_param.request_indication =
+                    OpenAPI_request_indication_NW_REQ_PDU_SES_REL;
+
+                /* Remove N1 SM Message */
+                if (sess->n1smbuf) {
+                    ogs_pkbuf_free(sess->n1smbuf);
+                    sess->n1smbuf = NULL;
+                }
+
                 ogs_assert(OGS_OK ==
                     smf_5gc_pfcp_send_all_pdr_modification_request(
                         sess, stream,
@@ -2056,38 +2070,37 @@ bool smf_nsmf_handle_update_data_in_hsmf(
         return false;
     }
 
+    if (!HsmfUpdateData->request_indication) {
+        ogs_error("[%s:%d] No requestIndication",
+                smf_ue->supi, sess->psi);
+        smf_sbi_send_pdu_session_create_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No requestIndication", smf_ue->supi, NULL);
+        return false;
+    }
+
+    sess->nsmf_param.request_indication = HsmfUpdateData->request_indication;
+
     n1SmInfoFromUe = HsmfUpdateData->n1_sm_info_from_ue;
-    if (!n1SmInfoFromUe || !n1SmInfoFromUe->content_id) {
-        ogs_error("[%s:%d] No n1SmInfoFromUe", smf_ue->supi, sess->psi);
-        smf_sbi_send_pdu_session_create_error(stream,
-                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
-                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
-                "No n1SmInfoFromUe", smf_ue->supi, NULL);
-        return false;
-    }
+    if (n1SmInfoFromUe) {
+        n1SmBufFromUe = ogs_sbi_find_part_by_content_id(
+                message, n1SmInfoFromUe->content_id);
 
-    n1SmBufFromUe = ogs_sbi_find_part_by_content_id(
-            message, n1SmInfoFromUe->content_id);
-    if (!n1SmBufFromUe) {
-        ogs_error("[%s:%d] No N1 SM Content [%s]",
-                smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
-        smf_sbi_send_pdu_session_create_error(stream,
-                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
-                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
-                "No N1 SM Content", smf_ue->supi, NULL);
-        return false;
-    }
-
-    rv = gsmue_decode_n1_sm_info(&nas_message, n1SmBufFromUe);
-    if (rv != OGS_OK) {
-        ogs_error("[%s:%d] cannot decode N1 SM Content [%s]",
-                smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
-        ogs_log_hexdump(OGS_LOG_ERROR, n1SmBufFromUe->data, n1SmBufFromUe->len);
-        smf_sbi_send_pdu_session_create_error(stream,
-                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
-                OGS_5GSM_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE,
-                "cannot decode N1 SM Content", smf_ue->supi, NULL);
-        return false;
+        if (n1SmBufFromUe) {
+            rv = gsmue_decode_n1_sm_info(&nas_message, n1SmBufFromUe);
+            if (rv != OGS_OK) {
+                ogs_error("[%s:%d] cannot decode N1 SM Content [%s]",
+                        smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
+                ogs_log_hexdump(OGS_LOG_ERROR,
+                        n1SmBufFromUe->data, n1SmBufFromUe->len);
+                smf_sbi_send_pdu_session_create_error(stream,
+                        OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                        OGS_5GSM_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE,
+                        "cannot decode N1 SM Content", smf_ue->supi, NULL);
+                return false;
+            }
+        }
     }
 
     if (HsmfUpdateData->ue_location &&

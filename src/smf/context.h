@@ -65,6 +65,8 @@ typedef struct smf_ctf_config_s {
 int smf_ctf_config_init(smf_ctf_config_t *ctf_config);
 
 typedef struct smf_nsmf_pdusession_param_s {
+    OpenAPI_request_indication_e request_indication;
+
     OpenAPI_cause_e cause;
 
     struct {

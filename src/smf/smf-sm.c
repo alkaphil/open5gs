@@ -964,7 +964,9 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                     sbi_message.res_status != OGS_SBI_HTTP_STATUS_CREATED)
                     unknown_res_status = true;
             } else if (state == SMF_UECM_STATE_DEREG_BY_AMF ||
-                        state == SMF_UECM_STATE_DEREG_BY_N1N2) {
+                        state == SMF_UECM_STATE_DEREG_BY_AMF_HR ||
+                        state == SMF_UECM_STATE_DEREG_BY_N1N2 ||
+                        state == SMF_UECM_STATE_DEREG_BY_N1N2_HR) {
                 /* SMF Deregistration */
                 if (sbi_message.res_status != OGS_SBI_HTTP_STATUS_NO_CONTENT)
                     unknown_res_status = true;
@@ -1002,6 +1004,8 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 /* SMF Deregistration */
                 ogs_assert(stream);
                 ogs_assert(true == ogs_sbi_send_http_status_no_content(stream));
+                SMF_SESS_CLEAR(sess);
+            } else if (state == SMF_UECM_STATE_DEREG_BY_AMF_HR) {
                 SMF_SESS_CLEAR(sess);
             } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2) {
                 /* SMF Deregistration */

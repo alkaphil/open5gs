@@ -104,7 +104,7 @@ bool smf_namf_comm_handle_n1_n2_message_transfer(
         }
         break;
 
-    case SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE:
+    case SMF_UE_OR_NETWORK_REQUESTED_PDU_SESSION_RELEASE:
     case SMF_ERROR_INDICATON_RECEIVED_FROM_5G_AN:
 
         N1N2MessageTransferRspData = recvmsg->N1N2MessageTransferRspData;

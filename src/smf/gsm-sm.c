@@ -1471,7 +1471,7 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
             smf_n1_n2_message_transfer_param_t param;
 
             memset(&param, 0, sizeof(param));
-            param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+            param.state = SMF_UE_OR_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
             sess->pti = OGS_NAS_PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED;
             param.n1smbuf = gsm_build_pdu_session_release_command(
                 sess, OGS_5GSM_CAUSE_REACTIVATION_REQUESTED);
@@ -1639,16 +1639,65 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                         ogs_expect(r == OGS_OK);
                         ogs_assert(r != OGS_ERROR);
 
-                    } else {
-                        n1smbuf = gsm_build_pdu_session_release_command(
-                                sess, OGS_5GSM_CAUSE_REGULAR_DEACTIVATION);
-                        ogs_assert(n1smbuf);
+                    } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
 
-                        n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
+                        smf_n1_n2_message_transfer_param_t param;
+
+                        memset(&param, 0, sizeof(param));
+                        param.state =
+                            SMF_UE_OR_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+                        sess->pti =
+                            OGS_NAS_PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED;
+                        param.n1smbuf = gsm_build_pdu_session_release_command(
+                            sess, OGS_5GSM_CAUSE_REACTIVATION_REQUESTED);
+                        ogs_assert(param.n1smbuf);
+
+                        param.n2smbuf =
+                            ngap_build_pdu_session_resource_release_command_transfer(
                                 sess,
                                 SMF_NGAP_STATE_DELETE_TRIGGER_UE_REQUESTED,
                                 NGAP_Cause_PR_nas,
                                 NGAP_CauseNas_normal_release);
+                        ogs_assert(param.n2smbuf);
+
+        /*
+         * Skip_ind is not used when changing the PDU Session Anchor.
+         * param.skip_ind = false;
+         *
+         * TS23.502
+         * 4.3.4 PDU Session Release
+         * 4.3.4.2 UE or network requested PDU Session Release for Non-Roaming
+         * and Roaming with Local Breakout
+         *
+         * 3b. ...
+         *
+         * The "skip indicator" tells the AMF whether it may skip sending
+         * the N1 SM container to the UE (e.g. when the UE is in CM-IDLE state).
+         * SMF includes the "skip indicator"
+         * in the Namf_Communication_N1N2MessageTransfer
+         * except when the procedure is triggered to change PDU Session Anchor
+         * of a PDU Session with SSC mode 2.
+         *
+         * Related Issue #2396
+         */
+
+                        smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+
+                        OGS_FSM_TRAN(&sess->sm,
+                                smf_gsm_state_wait_5gc_n1_n2_release);
+
+                    } else {
+
+                        n1smbuf = gsm_build_pdu_session_release_command(
+                                sess, OGS_5GSM_CAUSE_REGULAR_DEACTIVATION);
+                        ogs_assert(n1smbuf);
+
+                        n2smbuf =
+                            ngap_build_pdu_session_resource_release_command_transfer(
+                                    sess,
+                                    SMF_NGAP_STATE_DELETE_TRIGGER_UE_REQUESTED,
+                                    NGAP_Cause_PR_nas,
+                                    NGAP_CauseNas_normal_release);
                         ogs_assert(n2smbuf);
 
                         ogs_assert(stream);
@@ -1663,11 +1712,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                 } else if (trigger ==
                             OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT) {
 
-                    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
-                        ogs_assert(true ==
-                                ogs_sbi_send_http_status_no_content(stream));
-                        OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
-                    } else if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
+                    if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
     /*
      * TS23.502 clause 4.3.4.3 UE or network requested PDU Session Release
      * for Home-routed Roaming.
@@ -1686,7 +1731,15 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
 
                         OGS_FSM_TRAN(s,
                                 smf_gsm_state_5gc_session_will_deregister);
+
+                    } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+                        OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
+
                     } else {
+
                         r = smf_sbi_cleanup_session(
                                 sess, stream,
                                 SMF_UECM_STATE_DEREG_BY_AMF,
@@ -1701,11 +1754,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                 } else if (trigger ==
                             OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT) {
 
-                    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
-                        ogs_assert(true ==
-                                ogs_sbi_send_http_status_no_content(stream));
-                        OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
-                    } else if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
+                    if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
                 /*
                  * TS23.502
                  * 4.3.4.3 UE or network requested PDU Session Release
@@ -1725,7 +1774,15 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
 
                         OGS_FSM_TRAN(s,
                                 smf_gsm_state_5gc_session_will_deregister);
+
+                    } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+                        OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
+
                     } else {
+
                         r = smf_sbi_cleanup_session(
                                 sess, stream,
                                 SMF_UECM_STATE_DEREG_BY_AMF,
@@ -1738,14 +1795,18 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                     }
 
                 } else if (trigger == OGS_PFCP_DELETE_TRIGGER_PCF_INITIATED) {
+
                     if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
+
                         ogs_assert(true ==
                                 ogs_sbi_send_http_status_no_content(stream));
+
                     } else {
+
                         smf_n1_n2_message_transfer_param_t param;
 
                         memset(&param, 0, sizeof(param));
-                        param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+                        param.state = SMF_UE_OR_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
                         param.n2smbuf = ngap_build_pdu_session_resource_release_command_transfer(
                                 sess,
                                 SMF_NGAP_STATE_DELETE_TRIGGER_PCF_INITIATED,

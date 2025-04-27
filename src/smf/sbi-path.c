@@ -283,7 +283,7 @@ void smf_namf_comm_send_n1_n2_pdu_establishment_reject(
     smf_n1_n2_message_transfer_param_t param;
 
     memset(&param, 0, sizeof(param));
-    param.state = SMF_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
+    param.state = SMF_UE_OR_NETWORK_REQUESTED_PDU_SESSION_RELEASE;
     param.n1smbuf = gsm_build_pdu_session_establishment_reject(sess,
         OGS_5GSM_CAUSE_NETWORK_FAILURE);
     ogs_assert(param.n1smbuf);

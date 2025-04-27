@@ -812,7 +812,7 @@ void smf_gsm_state_wait_pfcp_establishment(ogs_fsm_t *s, smf_event_t *e)
                 if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
                     r = smf_sbi_discover_and_send(
                             OGS_SBI_SERVICE_TYPE_NSMF_PDUSESSION, NULL,
-                            smf_nsmf_pdusession_build_create_request,
+                            smf_nsmf_pdusession_build_create_data,
                             sess, NULL, 0, NULL);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -1079,58 +1079,51 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                     OGS_FSM_TRAN(s, smf_gsm_state_exception);
                 END
                 break;
+
             CASE(OGS_SBI_RESOURCE_NAME_PDU_SESSIONS)
                 SWITCH(sbi_message->h.resource.component[2])
                 CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
-                    rc = smf_nsmf_handle_update_data_in_hsmf(
+                    rc = smf_nsmf_handle_hsmf_update_data(
                             sess, stream, sbi_message);
                     if (rc == true) {
                         ogs_assert(sess->nsmf_param.request_indication);
 
                         if (sess->nsmf_param.request_indication ==
-                                OpenAPI_request_indication_UE_REQ_PDU_SES_REL) {
-                /*
-                 * TS23.502
-                 * 4.3.4.3 UE or network requested PDU Session Release
-                 *         for Home-routed Roaming
-                 *
-                 * 1a. (UE initiated release)
-                 */
-                            ogs_assert(true ==
-                                    ogs_sbi_send_http_status_no_content(
-                                        stream));
-
+                            OpenAPI_request_indication_UE_REQ_PDU_SES_REL) {
                             e->h.sbi.state =
                                 OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED;
-                            OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
-
                         } else if (sess->nsmf_param.request_indication ==
-                                OpenAPI_request_indication_NW_REQ_PDU_SES_REL) {
-
-    /*
-     * TS23.502 clause 4.3.4.3 UE or network requested PDU Session Release
-     * for Home-routed Roaming.
-     *
-     * In step 1f, upon receiving Nsmf_PDUSession_Update from V-SMF, H-SMF
-     * SHALL immediately send the Update Response, then issue PFCP Session
-     * Deletion. This ordering is per the standard, even for duplicate
-     * sessions, and may overlap with AMF’s concurrent Create Session.
-     */
-                            ogs_assert(true ==
-                                    ogs_sbi_send_http_status_no_content(
-                                        stream));
-
+                            OpenAPI_request_indication_NW_REQ_PDU_SES_REL) {
                             e->h.sbi.state =
-                                OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT;
-                            OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
-
+                            OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT;
                         } else {
                             ogs_fatal("Not implemented [requestIndication:%d]",
                                     sess->nsmf_param.request_indication);
                             ogs_assert_if_reached();
                         }
+    /*
+     * TS23.502 clause 4.3.4.3 UE or network requested PDU Session Release
+     * for Home-routed Roaming.
+     *
+     * In step 1a/1f, upon receiving Nsmf_PDUSession_Update from V-SMF,
+     * H-SMF SHALL immediately send the Update Response, then issue PFCP
+     * Session Deletion. This ordering is per the standard, even for duplicate
+     * sessions, and may overlap with AMF’s concurrent Create Session.
+     *
+     * 1a. (UE initiated release)
+     * 1f. This step is the same as step 1f in clause 4.3.4.2,
+     *     with the addition that:
+     *  - the V-SMF initiates N4 Session Modification to instruct the V-UPF
+     *    to stop forwarding uplink traffic; and
+     *  - the V-SMF invokes the Nsmf_PDUSession_Update Request towards H-SMF.
+     *    (OpenAPI_cause_REL_DUE_TO_DUPLICATE_SESSION_ID);
+     */
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
+
+                        OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
                     } else {
-                        ogs_error("smf_nsmf_handle_update_data_in_hsmf() "
+                        ogs_error("smf_nsmf_handle_hsmf_update_data() "
                                 "failed");
                     }
                     break;
@@ -1152,6 +1145,32 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                     OGS_FSM_TRAN(s, smf_gsm_state_exception);
                 END
                 break;
+
+            CASE(OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS)
+                SWITCH(sbi_message->h.resource.component[2])
+                CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
+                    rc = smf_nsmf_handle_vsmf_update_data(
+                            sess, stream, sbi_message);
+
+                    if (rc == true) {
+                        e->h.sbi.state = OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED;
+                        OGS_FSM_TRAN(s, smf_gsm_state_wait_pfcp_deletion);
+                    } else {
+                        ogs_error("smf_nsmf_handle_vsmf_update_data() failed");
+                    }
+                    break;
+                DEFAULT
+                    ogs_error("Invalid resource name [%s]",
+                                sbi_message->h.resource.component[2]);
+                    ogs_assert(true ==
+                        ogs_sbi_server_send_error(stream,
+                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, sbi_message,
+                            "Invalid resource name [%s]",
+                            sbi_message->h.resource.component[2], NULL));
+                    OGS_FSM_TRAN(s, smf_gsm_state_exception);
+                END
+                break;
+
             DEFAULT
                 ogs_error("Invalid resource name [%s]",
                             sbi_message->h.resource.component[0]);
@@ -1209,9 +1228,16 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 CASE(OGS_SBI_HTTP_METHOD_POST)
                     SWITCH(sbi_message->h.resource.component[2])
                     CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
+                        if (e->h.sbi.state ==
+                                OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT)
+                            OGS_FSM_TRAN(&sess->sm,
+                                    &smf_gsm_state_wait_pfcp_deletion);
+                        break;
                     CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
-                        OGS_FSM_TRAN(&sess->sm,
-                                &smf_gsm_state_wait_pfcp_deletion);
+                        if (e->h.sbi.state ==
+                                OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT)
+                            OGS_FSM_TRAN(&sess->sm,
+                                    &smf_gsm_state_wait_pfcp_deletion);
                         break;
                     DEFAULT
                         if (smf_nsmf_handle_create_data_in_vsmf(
@@ -1606,7 +1632,12 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
 
                     if (HOME_ROUTED_ROAMING_IN_HSMF(sess)) {
 
-                        /* TODO : update request */
+                        r = smf_sbi_discover_and_send(
+                                OGS_SBI_SERVICE_TYPE_NSMF_PDUSESSION, NULL,
+                                smf_nsmf_pdusession_build_vsmf_update_data,
+                                sess, NULL, trigger, NULL);
+                        ogs_expect(r == OGS_OK);
+                        ogs_assert(r != OGS_ERROR);
 
                     } else {
                         n1smbuf = gsm_build_pdu_session_release_command(
@@ -2024,7 +2055,42 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
         sbi_message = e->h.sbi.message;
         ogs_assert(sbi_message);
 
+        stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
+        if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
+            stream = ogs_sbi_stream_find_by_id(stream_id);
+
         SWITCH(sbi_message->h.service.name)
+        CASE(OGS_SBI_SERVICE_NAME_NSMF_PDUSESSION)
+            SWITCH(sbi_message->h.resource.component[0])
+            CASE(OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS)
+                SWITCH(sbi_message->h.method)
+                CASE(OGS_SBI_HTTP_METHOD_POST)
+                    SWITCH(sbi_message->h.resource.component[2])
+                    CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
+                        ogs_error("TODO");
+                        break;
+                    DEFAULT
+                        ogs_error("[%s:%d] Invalid resource name [%s]",
+                                smf_ue->supi, sess->psi,
+                                sbi_message->h.resource.component[2]);
+                        ogs_assert_if_reached();
+                    END
+                    break;
+
+                DEFAULT
+                    ogs_error("[%s:%d] Invalid HTTP method [%s]",
+                            smf_ue->supi, sess->psi, sbi_message->h.method);
+                    ogs_assert_if_reached();
+                END
+                break;
+            DEFAULT
+                ogs_error("[%s:%d] Invalid resource name [%s]",
+                        smf_ue->supi, sess->psi,
+                        sbi_message->h.resource.component[0]);
+                ogs_assert_if_reached();
+            END
+            break;
+
         CASE(OGS_SBI_SERVICE_NAME_NAMF_COMM)
             SWITCH(sbi_message->h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_UE_CONTEXTS)
@@ -2046,10 +2112,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
         CASE(OGS_SBI_SERVICE_NAME_NPCF_SMPOLICYCONTROL)
             ogs_pkbuf_t *n1smbuf = NULL;
 
-            stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-            if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
-                stream = ogs_sbi_stream_find_by_id(stream_id);
-
             ogs_error("[%s:%d] state [%d] res_status [%d]",
                 smf_ue->supi, sess->psi,
                 e->h.sbi.state, sbi_message->res_status);
@@ -2064,10 +2126,6 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
             break;
 
         CASE(OGS_SBI_SERVICE_NAME_NUDM_SDM)
-            stream_id = OGS_POINTER_TO_UINT(e->h.sbi.data);
-            if (stream_id >= OGS_MIN_POOL_ID && stream_id <= OGS_MAX_POOL_ID)
-                stream = ogs_sbi_stream_find_by_id(stream_id);
-
             SWITCH(sbi_message->h.resource.component[1])
             CASE(OGS_SBI_RESOURCE_NAME_SDM_SUBSCRIPTIONS)
                 SWITCH(sbi_message->h.method)

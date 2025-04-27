@@ -136,6 +136,17 @@ void smf_sbi_send_pdu_session_create_error(
         const char *title, const char *detail,
         ogs_pkbuf_t *n1SmBufToUe);
 
+void smf_sbi_send_hsmf_update_error(
+        ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_app_errno_e err, int n1SmCause,
+        const char *title, const char *detail,
+        ogs_pkbuf_t *n1SmBufToUe);
+void smf_sbi_send_vsmf_update_error(
+        ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_app_errno_e err, int n1SmCause,
+        const char *title, const char *detail,
+        ogs_pkbuf_t *n1SmBufFromUe);
+
 void smf_sbi_send_released_data(
         smf_sess_t *sess, ogs_sbi_stream_t *stream);
 

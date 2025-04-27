@@ -2509,6 +2509,49 @@ static int parse_json(ogs_sbi_message_t *message,
                     }
                 END
                 break;
+            CASE(OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS)
+                SWITCH(message->h.resource.component[2])
+                CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
+                    if (message->res_status == 0) {
+                        message->VsmfUpdateData =
+                            OpenAPI_vsmf_update_data_parseFromJSON(item);
+                        if (!message->VsmfUpdateData) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else if (message->res_status == OGS_SBI_HTTP_STATUS_OK) {
+                        message->VsmfUpdatedData =
+                            OpenAPI_vsmf_updated_data_parseFromJSON(item);
+                        if (!message->VsmfUpdatedData) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else if (message->res_status ==
+                            OGS_SBI_HTTP_STATUS_BAD_REQUEST ||
+                                message->res_status ==
+                                    OGS_SBI_HTTP_STATUS_FORBIDDEN ||
+                                message->res_status ==
+                                    OGS_SBI_HTTP_STATUS_NOT_FOUND ||
+                                message->res_status ==
+                                    OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR ||
+                                message->res_status ==
+                                    OGS_SBI_HTTP_STATUS_SERVICE_UNAVAILABLE ||
+                                message->res_status ==
+                                    OGS_SBI_HTTP_STATUS_GATEWAY_TIMEOUT) {
+                        message->VsmfUpdateError =
+                            OpenAPI_vsmf_update_error_parseFromJSON(item);
+                        if (!message->VsmfUpdateError) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    }
+                    break;
+                DEFAULT
+                    rv = OGS_ERROR;
+                    ogs_error("Unknown resource name [%s]",
+                            message->h.resource.component[2]);
+                    END
+                break;
 
             DEFAULT
                 rv = OGS_ERROR;

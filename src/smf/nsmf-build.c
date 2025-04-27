@@ -19,7 +19,7 @@
 
 #include "nsmf-build.h"
 
-ogs_sbi_request_t *smf_nsmf_pdusession_build_create_request(
+ogs_sbi_request_t *smf_nsmf_pdusession_build_create_data(
         smf_sess_t *sess, void *data)
 {
     ogs_sbi_message_t message;
@@ -131,14 +131,13 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_create_request(
             OpenAPI_request_type_EXISTING_EMERGENCY_PDU_SESSION)
         PduSessionCreateData.request_type = sess->request_type;
 
-    header.service.name = (char *)OGS_SBI_SERVICE_NAME_NSMF_CALLBACK;
+    header.service.name = (char *)OGS_SBI_SERVICE_NAME_NSMF_PDUSESSION;
     header.api.version = (char *)OGS_SBI_API_V1;
-    header.resource.component[0] = smf_ue->supi;
-    header.resource.component[1] =
-        (char *)OGS_SBI_RESOURCE_NAME_PDU_SESSION_STATUS;
-    header.resource.component[2] = ogs_msprintf("%d", sess->psi);
-    if (!header.resource.component[2]) {
-        ogs_error("No header.resource.component[2]");
+    header.resource.component[0] =
+        (char *)OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS;
+    header.resource.component[1] = sess->sm_context_ref;
+    if (!header.resource.component[1]) {
+        ogs_error("No header.resource.component[1]");
         goto end;
     }
 
@@ -324,6 +323,11 @@ end:
     if (PduSessionCreateData.ue_time_zone)
         ogs_free(PduSessionCreateData.ue_time_zone);
 
+    if (sess->n1smbuf) {
+        ogs_pkbuf_free(sess->n1smbuf);
+        sess->n1smbuf = NULL;
+    }
+
     if (n1SmBufFromUe)
         ogs_pkbuf_free(n1SmBufFromUe);
 
@@ -333,7 +337,7 @@ end:
     return request;
 }
 
-ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
+ogs_sbi_request_t *smf_nsmf_pdusession_build_hsmf_update_data(
         smf_sess_t *sess, void *data)
 {
     ogs_sbi_message_t message;
@@ -356,7 +360,7 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_update_request(
 
     memset(&message, 0, sizeof(message));
     message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
-    ogs_assert(sess->h_smf_uri);
+    ogs_assert(sess->pdu_session_resource_uri);
     message.h.uri = ogs_msprintf("%s/%s",
             sess->pdu_session_resource_uri, OGS_SBI_RESOURCE_NAME_MODIFY);
     ogs_assert(message.h.uri);
@@ -449,10 +453,65 @@ end:
     if (HsmfUpdateData.ue_time_zone)
         ogs_free(HsmfUpdateData.ue_time_zone);
 
+    if (sess->n1smbuf) {
+        ogs_pkbuf_free(sess->n1smbuf);
+        sess->n1smbuf = NULL;
+    }
+
     return request;
 }
 
-ogs_sbi_request_t *smf_nsmf_pdusession_build_release_request(
+ogs_sbi_request_t *smf_nsmf_pdusession_build_vsmf_update_data(
+        smf_sess_t *sess, void *data)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_request_t *request = NULL;
+
+    OpenAPI_vsmf_update_data_t VsmfUpdateData;
+
+    OpenAPI_ref_to_binary_data_t n1SmInfoToUe;
+    ogs_pkbuf_t *n1SmBufToUe = NULL;
+
+    ogs_assert(sess);
+
+    memset(&message, 0, sizeof(message));
+    message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
+    ogs_assert(sess->vsmf_pdu_session_uri);
+    message.h.uri = ogs_msprintf("%s/%s",
+            sess->vsmf_pdu_session_uri, OGS_SBI_RESOURCE_NAME_MODIFY);
+    ogs_assert(message.h.uri);
+
+    memset(&VsmfUpdateData, 0, sizeof(VsmfUpdateData));
+
+    VsmfUpdateData.request_indication = sess->nsmf_param.request_indication;
+    ogs_assert(VsmfUpdateData.request_indication);
+
+    n1SmBufToUe = gsmue_build_pdu_session_establishment_accept(sess);
+    ogs_assert(n1SmBufToUe);
+
+    n1SmInfoToUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+    VsmfUpdateData.n1_sm_info_to_ue = &n1SmInfoToUe;
+
+    message.part[message.num_of_part].pkbuf = n1SmBufToUe;
+    message.part[message.num_of_part].content_id =
+        (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+    message.part[message.num_of_part].content_type =
+        (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
+    message.num_of_part++;
+
+    message.VsmfUpdateData = &VsmfUpdateData;
+
+    request = ogs_sbi_build_request(&message);
+    ogs_expect(request);
+
+end:
+    if (message.h.uri)
+        ogs_free(message.h.uri);
+
+    return request;
+}
+
+ogs_sbi_request_t *smf_nsmf_pdusession_build_release_data(
         smf_sess_t *sess, void *data)
 {
     ogs_sbi_message_t message;
@@ -470,7 +529,7 @@ ogs_sbi_request_t *smf_nsmf_pdusession_build_release_request(
 
     memset(&message, 0, sizeof(message));
     message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
-    ogs_assert(sess->h_smf_uri);
+    ogs_assert(sess->pdu_session_resource_uri);
     message.h.uri = ogs_msprintf("%s/%s",
             sess->pdu_session_resource_uri, OGS_SBI_RESOURCE_NAME_RELEASE);
     ogs_assert(message.h.uri);

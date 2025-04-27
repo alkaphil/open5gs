@@ -994,6 +994,116 @@ void smf_sbi_send_pdu_session_create_error(
         ogs_pkbuf_free(n1SmBufToUe);
 }
 
+void smf_sbi_send_hsmf_update_error(
+        ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_app_errno_e err, int n1SmCause,
+        const char *title, const char *detail,
+        ogs_pkbuf_t *n1SmBufToUe)
+{
+    ogs_sbi_message_t sendmsg;
+    ogs_sbi_response_t *response = NULL;
+
+    OpenAPI_hsmf_update_error_t HsmfUpdateError;
+    OpenAPI_problem_details_t problem;
+    OpenAPI_ref_to_binary_data_t n1SmMsgToUe;
+
+    ogs_assert(stream);
+
+    memset(&sendmsg, 0, sizeof(sendmsg));
+    memset(&problem, 0, sizeof(problem));
+    memset(&HsmfUpdateError, 0, sizeof(HsmfUpdateError));
+
+    if (status) {
+        problem.is_status = true;
+        problem.status = status;
+    }
+    problem.title = (char*)title;
+    problem.detail = (char*)detail;
+    if (err > OGS_SBI_APP_ERRNO_NULL && err < OGS_SBI_MAX_NUM_OF_APP_ERRNO)
+        problem.cause = (char*)ogs_sbi_app_strerror(err);
+
+    sendmsg.HsmfUpdateError = &HsmfUpdateError;
+
+    memset(&HsmfUpdateError, 0, sizeof(HsmfUpdateError));
+    HsmfUpdateError.error = &problem;
+
+    if (n1SmCause)
+        HsmfUpdateError.n1sm_cause = ogs_msprintf("%02x", n1SmCause);
+
+    if (n1SmBufToUe) {
+        HsmfUpdateError.n1_sm_info_to_ue = &n1SmMsgToUe;
+        n1SmMsgToUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+        sendmsg.part[0].content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+        sendmsg.part[0].content_type = (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
+        sendmsg.part[0].pkbuf = n1SmBufToUe;
+        sendmsg.num_of_part = 1;
+    }
+
+    response = ogs_sbi_build_response(&sendmsg, problem.status);
+    ogs_assert(response);
+    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+    if (HsmfUpdateError.n1sm_cause)
+        ogs_free(HsmfUpdateError.n1sm_cause);
+    if (n1SmBufToUe)
+        ogs_pkbuf_free(n1SmBufToUe);
+}
+
+void smf_sbi_send_vsmf_update_error(
+        ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_app_errno_e err, int n1SmCause,
+        const char *title, const char *detail,
+        ogs_pkbuf_t *n1SmBufFromUe)
+{
+    ogs_sbi_message_t sendmsg;
+    ogs_sbi_response_t *response = NULL;
+
+    OpenAPI_vsmf_update_error_t VsmfUpdateError;
+    OpenAPI_ext_problem_details_t problem;
+    OpenAPI_ref_to_binary_data_t n1SmMsgFromUe;
+
+    ogs_assert(stream);
+
+    memset(&sendmsg, 0, sizeof(sendmsg));
+    memset(&problem, 0, sizeof(problem));
+    memset(&VsmfUpdateError, 0, sizeof(VsmfUpdateError));
+
+    if (status) {
+        problem.is_status = true;
+        problem.status = status;
+    }
+    problem.title = (char*)title;
+    problem.detail = (char*)detail;
+    if (err > OGS_SBI_APP_ERRNO_NULL && err < OGS_SBI_MAX_NUM_OF_APP_ERRNO)
+        problem.cause = (char*)ogs_sbi_app_strerror(err);
+
+    sendmsg.VsmfUpdateError = &VsmfUpdateError;
+
+    memset(&VsmfUpdateError, 0, sizeof(VsmfUpdateError));
+    VsmfUpdateError.error = &problem;
+
+    if (n1SmCause)
+        VsmfUpdateError.n1sm_cause = ogs_msprintf("%02x", n1SmCause);
+
+    if (n1SmBufFromUe) {
+        VsmfUpdateError.n1_sm_info_from_ue = &n1SmMsgFromUe;
+        n1SmMsgFromUe.content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+        sendmsg.part[0].content_id = (char *)OGS_SBI_CONTENT_5GNAS_SM_ID;
+        sendmsg.part[0].content_type = (char *)OGS_SBI_CONTENT_5GNAS_TYPE;
+        sendmsg.part[0].pkbuf = n1SmBufFromUe;
+        sendmsg.num_of_part = 1;
+    }
+
+    response = ogs_sbi_build_response(&sendmsg, problem.status);
+    ogs_assert(response);
+    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+    if (VsmfUpdateError.n1sm_cause)
+        ogs_free(VsmfUpdateError.n1sm_cause);
+    if (n1SmBufFromUe)
+        ogs_pkbuf_free(n1SmBufFromUe);
+}
+
 void smf_sbi_send_released_data(
         smf_sess_t *sess, ogs_sbi_stream_t *stream)
 {

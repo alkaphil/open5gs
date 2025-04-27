@@ -121,7 +121,7 @@ extern "C" {
 #define OGS_SBI_RESOURCE_NAME_RELEASE               "release"
 
 #define OGS_SBI_RESOURCE_NAME_PDU_SESSIONS          "pdu-sessions"
-#define OGS_SBI_RESOURCE_NAME_PDU_SESSION_STATUS    "pdu-session-status"
+#define OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS     "vsmf-pdu-session"
 
 #define OGS_SBI_RESOURCE_NAME_SM_POLICY_NOTIFY      "sm-policy-notify"
 #define OGS_SBI_RESOURCE_NAME_N1_N2_FAILURE_NOTIFY  "n1-n2-failure-notify"

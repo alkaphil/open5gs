@@ -2038,7 +2038,7 @@ bool smf_nsmf_handle_create_data_in_vsmf(
     return true;
 }
 
-bool smf_nsmf_handle_update_data_in_hsmf(
+bool smf_nsmf_handle_hsmf_update_data(
     smf_sess_t *sess, ogs_sbi_stream_t *stream, ogs_sbi_message_t *message)
 {
     int rv;
@@ -2063,7 +2063,7 @@ bool smf_nsmf_handle_update_data_in_hsmf(
     if (!HsmfUpdateData) {
         ogs_error("[%s:%d] No HsmfUpdateData",
                 smf_ue->supi, sess->psi);
-        smf_sbi_send_pdu_session_create_error(stream,
+        smf_sbi_send_hsmf_update_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
                 OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
                 "No HsmfUpdateData", smf_ue->supi, NULL);
@@ -2073,7 +2073,7 @@ bool smf_nsmf_handle_update_data_in_hsmf(
     if (!HsmfUpdateData->request_indication) {
         ogs_error("[%s:%d] No requestIndication",
                 smf_ue->supi, sess->psi);
-        smf_sbi_send_pdu_session_create_error(stream,
+        smf_sbi_send_hsmf_update_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
                 OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
                 "No requestIndication", smf_ue->supi, NULL);
@@ -2094,7 +2094,7 @@ bool smf_nsmf_handle_update_data_in_hsmf(
                         smf_ue->supi, sess->psi, n1SmInfoFromUe->content_id);
                 ogs_log_hexdump(OGS_LOG_ERROR,
                         n1SmBufFromUe->data, n1SmBufFromUe->len);
-                smf_sbi_send_pdu_session_create_error(stream,
+                smf_sbi_send_hsmf_update_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
                         OGS_5GSM_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE,
                         "cannot decode N1 SM Content", smf_ue->supi, NULL);
@@ -2138,6 +2138,73 @@ bool smf_nsmf_handle_update_data_in_hsmf(
     }
     sess->nsmf_param.gmm_cause = HsmfUpdateData->_5g_mm_cause_value;
     sess->nsmf_param.cause = HsmfUpdateData->cause;
+
+    return true;
+}
+
+bool smf_nsmf_handle_vsmf_update_data(
+    smf_sess_t *sess, ogs_sbi_stream_t *stream, ogs_sbi_message_t *message)
+{
+    int rv;
+    smf_ue_t *smf_ue = NULL;
+
+    OpenAPI_vsmf_update_data_t *VsmfUpdateData = NULL;
+
+    ogs_nas_5gs_message_t nas_message;
+    ogs_pkbuf_t *n1SmBufToUe = NULL;
+    OpenAPI_ref_to_binary_data_t *n1SmInfoToUe = NULL;
+
+    ogs_assert(stream);
+    ogs_assert(message);
+    ogs_assert(sess);
+    smf_ue = smf_ue_find_by_id(sess->smf_ue_id);
+    ogs_assert(smf_ue);
+
+    memset(&sess->nsmf_param, 0, sizeof(sess->nsmf_param));
+
+    VsmfUpdateData = message->VsmfUpdateData;
+    if (!VsmfUpdateData) {
+        ogs_error("[%s:%d] No VsmfUpdateData",
+                smf_ue->supi, sess->psi);
+        smf_sbi_send_vsmf_update_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No VsmfUpdateData", smf_ue->supi, NULL);
+        return false;
+    }
+
+    if (!VsmfUpdateData->request_indication) {
+        ogs_error("[%s:%d] No requestIndication",
+                smf_ue->supi, sess->psi);
+        smf_sbi_send_vsmf_update_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                "No requestIndication", smf_ue->supi, NULL);
+        return false;
+    }
+
+    sess->nsmf_param.request_indication = VsmfUpdateData->request_indication;
+
+    n1SmInfoToUe = VsmfUpdateData->n1_sm_info_to_ue;
+    if (n1SmInfoToUe) {
+        n1SmBufToUe = ogs_sbi_find_part_by_content_id(
+                message, n1SmInfoToUe->content_id);
+
+        if (n1SmBufToUe) {
+            rv = gsmue_decode_n1_sm_info(&nas_message, n1SmBufToUe);
+            if (rv != OGS_OK) {
+                ogs_error("[%s:%d] cannot decode N1 SM Content [%s]",
+                        smf_ue->supi, sess->psi, n1SmInfoToUe->content_id);
+                ogs_log_hexdump(OGS_LOG_ERROR,
+                        n1SmBufToUe->data, n1SmBufToUe->len);
+                smf_sbi_send_vsmf_update_error(stream,
+                        OGS_SBI_HTTP_STATUS_BAD_REQUEST, OGS_SBI_APP_ERRNO_NULL,
+                        OGS_5GSM_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE,
+                        "cannot decode N1 SM Content", smf_ue->supi, NULL);
+                return false;
+            }
+        }
+    }
 
     return true;
 }

@@ -835,7 +835,8 @@ void smf_gsm_state_wait_pfcp_establishment(ogs_fsm_t *s, smf_event_t *e)
                         ngap_build_pdu_session_resource_setup_request_transfer(
                                 sess);
                     ogs_assert(param.n2smbuf);
-                    smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                    smf_namf_comm_send_n1_n2_message_transfer(
+                            sess, NULL, &param);
                 }
             }
 
@@ -1206,7 +1207,7 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
             SWITCH(sbi_message->h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_UE_CONTEXTS)
                 smf_namf_comm_handle_n1_n2_message_transfer(
-                        sess, e->h.sbi.state, sbi_message);
+                        sess, stream, e->h.sbi.state, sbi_message);
                 break;
 
             DEFAULT
@@ -1421,7 +1422,7 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
 
                 param.n1n2_failure_txf_notif_uri = true;
 
-                smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
             } else {
                 ogs_fatal("Invalid state [%d]", ngap_state);
                 ogs_assert_if_reached();
@@ -1504,7 +1505,7 @@ void smf_gsm_state_operational(ogs_fsm_t *s, smf_event_t *e)
      * Related Issue #2396
      */
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
 
             OGS_FSM_TRAN(&sess->sm, smf_gsm_state_wait_5gc_n1_n2_release);
         } else {
@@ -1681,7 +1682,8 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
          * Related Issue #2396
          */
 
-                        smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                        smf_namf_comm_send_n1_n2_message_transfer(
+                                sess, stream, &param);
 
                         OGS_FSM_TRAN(&sess->sm,
                                 smf_gsm_state_wait_5gc_n1_n2_release);
@@ -1816,7 +1818,8 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
 
                         param.skip_ind = true;
 
-                        smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                        smf_namf_comm_send_n1_n2_message_transfer(
+                                sess, NULL, &param);
                     }
 
                     OGS_FSM_TRAN(s, smf_gsm_state_wait_5gc_n1_n2_release);
@@ -2155,11 +2158,12 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
         CASE(OGS_SBI_SERVICE_NAME_NAMF_COMM)
             SWITCH(sbi_message->h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_UE_CONTEXTS)
-                ogs_warn("[%s:%d] state [%d] res_status [%d]",
+                ogs_info("[%s:%d] state [%d] res_status [%d], stream [%p:%d]",
                     smf_ue->supi, sess->psi,
-                    e->h.sbi.state, sbi_message->res_status);
+                    e->h.sbi.state, sbi_message->res_status,
+                    stream, stream_id);
                 smf_namf_comm_handle_n1_n2_message_transfer(
-                        sess, e->h.sbi.state, sbi_message);
+                        sess, stream, e->h.sbi.state, sbi_message);
                 break;
 
             DEFAULT
@@ -2280,12 +2284,14 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
 
                 sess->n2_released = true;
                 if ((sess->n1_released) && (sess->n2_released)) {
-                    r = smf_sbi_cleanup_session(
-                            sess, NULL,
-                            SMF_UECM_STATE_DEREG_BY_N1N2,
-                            SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
-                    ogs_expect(r == OGS_OK);
-                    ogs_assert(r != OGS_ERROR);
+                    if (!HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                        r = smf_sbi_cleanup_session(
+                                sess, NULL,
+                                SMF_UECM_STATE_DEREG_BY_N1N2,
+                                SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+                        ogs_expect(r == OGS_OK);
+                        ogs_assert(r != OGS_ERROR);
+                    }
 
                     OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
                 }
@@ -2320,12 +2326,14 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
 
             sess->n1_released = true;
             if ((sess->n1_released) && (sess->n2_released)) {
-                r = smf_sbi_cleanup_session(
-                        sess, NULL,
-                        SMF_UECM_STATE_DEREG_BY_N1N2,
-                        SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
-                ogs_expect(r == OGS_OK);
-                ogs_assert(r != OGS_ERROR);
+                if (!HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                    r = smf_sbi_cleanup_session(
+                            sess, NULL,
+                            SMF_UECM_STATE_DEREG_BY_N1N2,
+                            SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+                    ogs_expect(r == OGS_OK);
+                    ogs_assert(r != OGS_ERROR);
+                }
 
                 OGS_FSM_TRAN(s, smf_gsm_state_5gc_session_will_deregister);
             }
@@ -2381,7 +2389,7 @@ void smf_gsm_state_5gc_n1_n2_reject(ogs_fsm_t *s, smf_event_t *e)
                     OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT, NULL);
             ogs_expect(r == OGS_OK);
         } else {
-            smf_namf_comm_send_n1_n2_pdu_establishment_reject(sess);
+            smf_namf_comm_send_n1_n2_pdu_establishment_reject(sess, NULL);
         }
         break;
     case OGS_FSM_EXIT_SIG:
@@ -2419,7 +2427,8 @@ void smf_gsm_state_5gc_n1_n2_reject(ogs_fsm_t *s, smf_event_t *e)
                                sessions. */
                         }
 
-                        smf_namf_comm_send_n1_n2_pdu_establishment_reject(sess);
+                        smf_namf_comm_send_n1_n2_pdu_establishment_reject(
+                                sess, NULL);
                         break;
                     DEFAULT
                         ogs_error("[%s:%d] Unknown resource name [%s]",

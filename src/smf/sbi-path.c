@@ -237,7 +237,8 @@ int smf_sbi_discover_and_send(
 }
 
 void smf_namf_comm_send_n1_n2_message_transfer(
-        smf_sess_t *sess, smf_n1_n2_message_transfer_param_t *param)
+        smf_sess_t *sess, ogs_sbi_stream_t *stream,
+        smf_n1_n2_message_transfer_param_t *param)
 {
     smf_ue_t *smf_ue = NULL;
     ogs_sbi_xact_t *xact = NULL;
@@ -269,6 +270,12 @@ void smf_namf_comm_send_n1_n2_message_transfer(
 
     xact->state = param->state;
 
+    if (stream) {
+        xact->assoc_stream_id = ogs_sbi_id_from_stream(stream);
+        ogs_assert(xact->assoc_stream_id >= OGS_MIN_POOL_ID &&
+                xact->assoc_stream_id <= OGS_MAX_POOL_ID);
+    }
+
     r = ogs_sbi_discover_and_send(xact);
     if (r != OGS_OK) {
         ogs_error("smf_namf_comm_send_n1_n2_message_transfer() failed");
@@ -278,7 +285,7 @@ void smf_namf_comm_send_n1_n2_message_transfer(
 }
 
 void smf_namf_comm_send_n1_n2_pdu_establishment_reject(
-        smf_sess_t *sess)
+        smf_sess_t *sess, ogs_sbi_stream_t *stream)
 {
     smf_n1_n2_message_transfer_param_t param;
 
@@ -288,7 +295,7 @@ void smf_namf_comm_send_n1_n2_pdu_establishment_reject(
         OGS_5GSM_CAUSE_NETWORK_FAILURE);
     ogs_assert(param.n1smbuf);
 
-    smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+    smf_namf_comm_send_n1_n2_message_transfer(sess, stream, &param);
 }
 
 void smf_sbi_send_sm_context_created_data(

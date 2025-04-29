@@ -699,29 +699,38 @@ bool smf_nsmf_handle_update_sm_context(
         ogs_assert(gsm_header);
         sess->pti = gsm_header->procedure_transaction_identity;
 
-        if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
-            /* Save N1 SM Message and send it to H-SMF */
-            if (sess->n1smbuf) ogs_pkbuf_free(sess->n1smbuf);
-            sess->n1smbuf = ogs_pkbuf_copy(n1smbuf);
-            ogs_assert(sess->n1smbuf);
+        switch (gsm_header->message_type) {
+        case OGS_NAS_5GS_PDU_SESSION_RELEASE_REQUEST:
+            if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                /* Save N1 SM Message and send it to H-SMF */
+                if (sess->n1smbuf) ogs_pkbuf_free(sess->n1smbuf);
+                sess->n1smbuf = ogs_pkbuf_copy(n1smbuf);
+                ogs_assert(sess->n1smbuf);
 
-            /* UE Requested PDU Session Release */
-            sess->nsmf_param.request_indication =
-                OpenAPI_request_indication_UE_REQ_PDU_SES_REL;
+                /* UE Requested PDU Session Release */
+                sess->nsmf_param.request_indication =
+                    OpenAPI_request_indication_UE_REQ_PDU_SES_REL;
 
-            ogs_assert(OGS_OK ==
-                smf_5gc_pfcp_send_all_pdr_modification_request(
-                    sess, stream,
-                    OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
-                    OGS_PFCP_MODIFY_UL_ONLY|
-                    OGS_PFCP_MODIFY_DEACTIVATE,
-                    OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED, 0));
-        } else {
-            /*
-             * NOTE : The pkbuf created in the SBI message will be removed
-             *        from ogs_sbi_message_free().
-             *        So it must be copied and push a event queue.
-             */
+                ogs_assert(OGS_OK ==
+                    smf_5gc_pfcp_send_all_pdr_modification_request(
+                        sess, stream,
+                        OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING|
+                        OGS_PFCP_MODIFY_UL_ONLY|
+                        OGS_PFCP_MODIFY_DEACTIVATE,
+                        OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED, 0));
+            } else {
+                n1smbuf = ogs_pkbuf_copy(n1smbuf);
+                ogs_assert(n1smbuf);
+                nas_5gs_send_to_gsm(sess, stream, n1smbuf);
+            }
+            break;
+
+        default:
+
+        /*
+         * Do not send PFCP Modification on PDU session release complete.
+         * PFCP Modification should only be sent on PDU session release request.
+         */
             n1smbuf = ogs_pkbuf_copy(n1smbuf);
             ogs_assert(n1smbuf);
             nas_5gs_send_to_gsm(sess, stream, n1smbuf);

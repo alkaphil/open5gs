@@ -450,7 +450,7 @@ void smf_5gc_n4_handle_session_modification_response(
                             sess);
                 ogs_assert(param.n2smbuf);
 
-                smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+                smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
             } else {
                 ogs_fatal("Invalid flags [0x%llx]", (long long)flags);
                 ogs_assert_if_reached();
@@ -484,7 +484,7 @@ void smf_5gc_n4_handle_session_modification_response(
 
             param.skip_ind = true;
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
         } else if (flags & OGS_PFCP_MODIFY_HOME_ROUTED_ROAMING) {
             int r;
             ogs_assert(trigger);
@@ -582,7 +582,7 @@ void smf_5gc_n4_handle_session_modification_response(
                         NGAP_Cause_PR_nas, NGAP_CauseNas_normal_release);
             ogs_assert(param.n2smbuf);
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
 
             ogs_list_for_each_entry_safe(&sess->qos_flow_to_modify_list,
                     next, qos_flow, to_modify_node) {
@@ -673,7 +673,7 @@ void smf_5gc_n4_handle_session_modification_response(
                         sess, true);
             ogs_assert(param.n2smbuf);
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
 
         } else {
             ogs_fatal("Unknown flags [0x%llx]", (long long)flags);
@@ -733,7 +733,7 @@ void smf_5gc_n4_handle_session_modification_response(
                     (flags & OGS_PFCP_MODIFY_QOS_MODIFY) ? true : false);
             ogs_assert(param.n2smbuf);
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
 
         } else if (flags & OGS_PFCP_MODIFY_UE_REQUESTED) {
             ogs_pkbuf_t *n1smbuf = NULL, *n2smbuf = NULL;
@@ -1393,7 +1393,7 @@ uint8_t smf_n4_handle_session_report_request(
 
             param.n1n2_failure_txf_notif_uri = true;
 
-            smf_namf_comm_send_n1_n2_message_transfer(sess, &param);
+            smf_namf_comm_send_n1_n2_message_transfer(sess, NULL, &param);
             break;
         case OpenAPI_up_cnx_state_SUSPENDED:
             ogs_error("[%s:%s] PDU Session had been SUSPENDED",

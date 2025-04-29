@@ -2131,7 +2131,15 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                 CASE(OGS_SBI_HTTP_METHOD_POST)
                     SWITCH(sbi_message->h.resource.component[2])
                     CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
-                        ogs_error("TODO");
+                        r = smf_sbi_cleanup_session(
+                                sess, NULL,
+                                SMF_UECM_STATE_DEREG_BY_N1N2_HR,
+                                SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
+                        ogs_expect(r == OGS_OK);
+                        ogs_assert(r != OGS_ERROR);
+
+                        OGS_FSM_TRAN(s,
+                                smf_gsm_state_5gc_session_will_deregister);
                         break;
                     DEFAULT
                         ogs_error("[%s:%d] Invalid resource name [%s]",
@@ -2284,7 +2292,22 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
 
                 sess->n2_released = true;
                 if ((sess->n1_released) && (sess->n2_released)) {
-                    if (!HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                    if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                        ogs_sbi_stream_t *n1_n2_released_stream = NULL;
+                        if (sess->n1_n2_released_stream_id >= OGS_MIN_POOL_ID &&
+                            sess->n1_n2_released_stream_id <= OGS_MAX_POOL_ID)
+                            n1_n2_released_stream =
+                                ogs_sbi_stream_find_by_id(
+                                        sess->n1_n2_released_stream_id);
+
+                        if (n1_n2_released_stream)
+                            ogs_assert(true ==
+                                    ogs_sbi_send_http_status_no_content(
+                                        n1_n2_released_stream));
+                        else
+                            ogs_error("No N1-N2 Released Stream [%d]",
+                                        sess->n1_n2_released_stream_id);
+                    } else {
                         r = smf_sbi_cleanup_session(
                                 sess, NULL,
                                 SMF_UECM_STATE_DEREG_BY_N1N2,
@@ -2326,7 +2349,22 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
 
             sess->n1_released = true;
             if ((sess->n1_released) && (sess->n2_released)) {
-                if (!HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
+                    ogs_sbi_stream_t *n1_n2_released_stream = NULL;
+                    if (sess->n1_n2_released_stream_id >= OGS_MIN_POOL_ID &&
+                        sess->n1_n2_released_stream_id <= OGS_MAX_POOL_ID)
+                        n1_n2_released_stream =
+                            ogs_sbi_stream_find_by_id(
+                                    sess->n1_n2_released_stream_id);
+
+                    if (n1_n2_released_stream)
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(
+                                    n1_n2_released_stream));
+                    else
+                        ogs_error("No N1-N2 Released Stream [%d]",
+                                    sess->n1_n2_released_stream_id);
+                } else {
                     r = smf_sbi_cleanup_session(
                             sess, NULL,
                             SMF_UECM_STATE_DEREG_BY_N1N2,

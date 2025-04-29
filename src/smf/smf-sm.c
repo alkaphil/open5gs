@@ -1076,6 +1076,9 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 /* SMF Deregistration */
                 ogs_assert(true == smf_sbi_send_sm_context_status_notify(sess));
                 SMF_SESS_CLEAR(sess);
+            } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2_HR) {
+                /* TODO */
+                SMF_SESS_CLEAR(sess);
             }
 
             break;

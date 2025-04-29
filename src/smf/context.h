@@ -633,6 +633,7 @@ typedef struct smf_sess_s {
 
     bool n1_released;
     bool n2_released;
+    ogs_pool_id_t n1_n2_released_stream_id;
 
     smf_nsmf_pdusession_param_t nsmf_param;
 

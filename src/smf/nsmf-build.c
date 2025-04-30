@@ -594,3 +594,33 @@ end:
 
     return request;
 }
+
+ogs_sbi_request_t *smf_nsmf_pdusession_build_status(
+        smf_sess_t *sess, void *data)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_request_t *request = NULL;
+
+    OpenAPI_status_notification_t StatusNotification;
+    OpenAPI_status_info_t StatusInfo;
+
+    ogs_assert(sess);
+    ogs_assert(sess->vsmf_pdu_session_uri);
+
+    memset(&StatusInfo, 0, sizeof(StatusInfo));
+    StatusInfo.resource_status = OpenAPI_resource_status_RELEASED;
+
+    memset(&StatusNotification, 0, sizeof(StatusNotification));
+    StatusNotification.status_info = &StatusInfo;
+
+    memset(&message, 0, sizeof(message));
+    message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
+    message.h.uri = sess->vsmf_pdu_session_uri;
+
+    message.StatusNotification = &StatusNotification;
+
+    request = ogs_sbi_build_request(&message);
+    ogs_expect(request);
+
+    return request;
+}

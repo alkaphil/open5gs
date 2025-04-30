@@ -161,6 +161,8 @@ void ogs_sbi_message_free(ogs_sbi_message_t *message)
         OpenAPI_release_data_free(message->ReleaseData);
     if (message->ReleasedData)
         OpenAPI_released_data_free(message->ReleasedData);
+    if (message->StatusNotification)
+        OpenAPI_status_notification_free(message->StatusNotification);
     if (message->SessionManagementSubscriptionDataList) {
         OpenAPI_lnode_t *node = NULL;
         OpenAPI_list_for_each(message->SessionManagementSubscriptionDataList, node)
@@ -1567,6 +1569,10 @@ static char *build_json(ogs_sbi_message_t *message)
     } else if (message->ReleasedData) {
         item = OpenAPI_released_data_convertToJSON(message->ReleasedData);
         ogs_assert(item);
+    } else if (message->StatusNotification) {
+        item = OpenAPI_status_notification_convertToJSON(
+                message->StatusNotification);
+        ogs_assert(item);
     } else if (message->SessionManagementSubscriptionDataList) {
         OpenAPI_lnode_t *node = NULL;
 
@@ -2547,10 +2553,18 @@ static int parse_json(ogs_sbi_message_t *message,
                     }
                     break;
                 DEFAULT
-                    rv = OGS_ERROR;
-                    ogs_error("Unknown resource name [%s]",
-                            message->h.resource.component[2]);
-                    END
+                    if (message->res_status < 300) {
+                        message->StatusNotification =
+                            OpenAPI_status_notification_parseFromJSON(item);
+                        if (!message->StatusNotification) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else {
+                        ogs_error("HTTP ERROR Status : %d",
+                                message->res_status);
+                    }
+                END
                 break;
 
             DEFAULT

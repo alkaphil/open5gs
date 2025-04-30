@@ -661,42 +661,29 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
             CASE(OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS)
                 SWITCH(sbi_message.h.method)
                 CASE(OGS_SBI_HTTP_METHOD_POST)
-                    SWITCH(sbi_message.h.resource.component[2])
-                    CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
-                        if (!sbi_message.h.resource.component[1]) {
-                            ogs_error("No smContextRef [%s]",
-                                    sbi_message.h.resource.component[1]);
-                            smf_sbi_send_vsmf_update_error(stream,
-                                    OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                                    OGS_SBI_APP_ERRNO_NULL,
-                                    OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
-                                    "No smContextRef",
-                                    sbi_message.h.resource.component[1], NULL);
-                            break;
-                        }
-
-                        sess = smf_sess_find_by_sm_context_ref(
+                    if (!sbi_message.h.resource.component[1]) {
+                        ogs_error("No smContextRef [%s]",
                                 sbi_message.h.resource.component[1]);
-
-                        if (!sess) {
-                            ogs_warn("Not found [%s]", sbi_message.h.uri);
-                            smf_sbi_send_vsmf_update_error(stream,
-                                    OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                                    OGS_SBI_APP_ERRNO_NULL,
-                                    OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
-                                    "Not found", sbi_message.h.uri, NULL);
-                        }
+                        smf_sbi_send_vsmf_update_error(stream,
+                                OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                                OGS_SBI_APP_ERRNO_NULL,
+                                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                                "No smContextRef",
+                                sbi_message.h.resource.component[1], NULL);
                         break;
+                    }
 
-                    DEFAULT
-                        ogs_error("Invalid resource name [%s]",
-                                sbi_message.h.resource.component[2]);
-                        ogs_assert(true ==
-                            ogs_sbi_server_send_error(stream,
-                                OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
-                                "Invalid resource name",
-                                sbi_message.h.resource.component[2], NULL));
-                    END
+                    sess = smf_sess_find_by_sm_context_ref(
+                            sbi_message.h.resource.component[1]);
+
+                    if (!sess) {
+                        ogs_warn("Not found [%s]", sbi_message.h.uri);
+                        smf_sbi_send_vsmf_update_error(stream,
+                                OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                                OGS_SBI_APP_ERRNO_NULL,
+                                OGS_5GSM_CAUSE_INVALID_MANDATORY_INFORMATION,
+                                "Not found", sbi_message.h.uri, NULL);
+                    }
                     break;
 
                 DEFAULT
@@ -1077,7 +1064,7 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                 ogs_assert(true == smf_sbi_send_sm_context_status_notify(sess));
                 SMF_SESS_CLEAR(sess);
             } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2_HR) {
-                /* TODO */
+                ogs_assert(true == smf_sbi_send_status_notify(sess));
                 SMF_SESS_CLEAR(sess);
             }
 

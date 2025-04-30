@@ -576,6 +576,7 @@ typedef struct ogs_sbi_message_s {
     OpenAPI_vsmf_update_error_t *VsmfUpdateError;
     OpenAPI_release_data_t *ReleaseData;
     OpenAPI_released_data_t *ReleasedData;
+    OpenAPI_status_notification_t *StatusNotification;
     OpenAPI_list_t *SessionManagementSubscriptionDataList;
     OpenAPI_n1_n2_message_transfer_req_data_t *N1N2MessageTransferReqData;
     OpenAPI_n1_n2_message_transfer_rsp_data_t *N1N2MessageTransferRspData;

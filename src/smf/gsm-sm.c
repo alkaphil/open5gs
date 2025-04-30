@@ -2556,11 +2556,46 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
 
         SWITCH(sbi_message->h.service.name)
         CASE(OGS_SBI_SERVICE_NAME_NSMF_PDUSESSION)
-            SWITCH(sbi_message->h.resource.component[2])
-            CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
-                ogs_assert(true == ogs_sbi_send_response(
-                            stream, OGS_SBI_HTTP_STATUS_TOO_MANY_REQUESTS));
+            SWITCH(sbi_message->h.resource.component[0])
+            CASE(OGS_SBI_RESOURCE_NAME_SM_CONTEXTS)
+                SWITCH(sbi_message->h.resource.component[2])
+                CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
+                    ogs_assert(true == ogs_sbi_send_response(
+                                stream, OGS_SBI_HTTP_STATUS_TOO_MANY_REQUESTS));
+                    break;
+                DEFAULT
+                    ogs_error("Invalid resource name [%s]",
+                                sbi_message->h.resource.component[2]);
+                    ogs_assert(true ==
+                        ogs_sbi_server_send_error(stream,
+                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, sbi_message,
+                            "Invalid resource name [%s]",
+                            sbi_message->h.resource.component[2], NULL));
+                    OGS_FSM_TRAN(s, smf_gsm_state_exception);
+                END
                 break;
+
+            CASE(OGS_SBI_RESOURCE_NAME_VSMF_PDU_SESSIONS)
+                SWITCH(sbi_message->h.resource.component[2])
+                CASE(OGS_SBI_RESOURCE_NAME_RELEASE)
+                    ogs_error("Invalid resource name [%s]",
+                                sbi_message->h.resource.component[2]);
+                    ogs_assert(true ==
+                        ogs_sbi_server_send_error(stream,
+                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, sbi_message,
+                            "Invalid resource name [%s]",
+                            sbi_message->h.resource.component[2], NULL));
+                    OGS_FSM_TRAN(s, smf_gsm_state_exception);
+                    break;
+                DEFAULT
+                    ogs_assert(true ==
+                            ogs_sbi_send_http_status_no_content(stream));
+                    ogs_assert(true ==
+                            smf_sbi_send_sm_context_status_notify(sess));
+                    OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
+                END
+                break;
+
             DEFAULT
                 ogs_error("Invalid resource name [%s]",
                             sbi_message->h.resource.component[2]);

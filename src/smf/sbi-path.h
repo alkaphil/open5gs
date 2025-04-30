@@ -151,6 +151,8 @@ void smf_sbi_send_vsmf_update_error(
 void smf_sbi_send_released_data(
         smf_sess_t *sess, ogs_sbi_stream_t *stream);
 
+bool smf_sbi_send_status_notify(smf_sess_t *sess);
+
 #ifdef __cplusplus
 }
 #endif

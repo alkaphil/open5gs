@@ -1128,3 +1128,28 @@ void smf_sbi_send_released_data(
     ogs_assert(response);
     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 }
+
+bool smf_sbi_send_status_notify(smf_sess_t *sess)
+{
+    bool rc;
+    ogs_sbi_request_t *request = NULL;
+    ogs_sbi_client_t *client = NULL;
+
+    ogs_assert(sess);
+    client = sess->v_smf.client;
+    ogs_assert(client);
+
+    request = smf_nsmf_pdusession_build_status(sess, NULL);
+    if (!request) {
+        ogs_error("smf_nsmf_pdusession_build_status() failed");
+        return false;
+    }
+
+    rc = ogs_sbi_send_request_to_client(
+            client, client_notify_cb, request, NULL);
+    ogs_expect(rc == true);
+
+    ogs_sbi_request_free(request);
+
+    return rc;
+}

@@ -1643,6 +1643,20 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                     } else if (HOME_ROUTED_ROAMING_IN_VSMF(sess)) {
 
                         smf_n1_n2_message_transfer_param_t param;
+                        ogs_sbi_stream_t *amf_update_request_stream = NULL;
+
+                        if (sess->amf_update_request_stream_id >=
+                                OGS_MIN_POOL_ID &&
+                            sess->amf_update_request_stream_id <=
+                                OGS_MAX_POOL_ID)
+                            amf_update_request_stream =
+                                ogs_sbi_stream_find_by_id(
+                                        sess->amf_update_request_stream_id);
+
+                        if (amf_update_request_stream)
+                            ogs_assert(true ==
+                                    ogs_sbi_send_http_status_no_content(
+                                        amf_update_request_stream));
 
                         memset(&param, 0, sizeof(param));
                         param.state =

@@ -711,6 +711,10 @@ bool smf_nsmf_handle_update_sm_context(
                 sess->nsmf_param.request_indication =
                     OpenAPI_request_indication_UE_REQ_PDU_SES_REL;
 
+                /* Store Stream ID */
+                sess->amf_update_request_stream_id =
+                    ogs_sbi_id_from_stream(stream);
+
                 ogs_assert(OGS_OK ==
                     smf_5gc_pfcp_send_all_pdr_modification_request(
                         sess, stream,

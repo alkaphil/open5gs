@@ -123,7 +123,6 @@ typedef enum {
  */
 int smf_sbi_cleanup_session(
     smf_sess_t              *sess,
-    ogs_sbi_stream_t        *stream,
     int                      state,
     smf_sbi_cleanup_mode_t   mode);
 

@@ -834,7 +834,6 @@ static int client_notify_cb(
 
 int smf_sbi_cleanup_session(
     smf_sess_t              *sess,
-    ogs_sbi_stream_t        *stream,
     int                      state,
     smf_sbi_cleanup_mode_t   mode)
 {
@@ -856,7 +855,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NPCF_SMPOLICYCONTROL,
                 NULL,
                 smf_npcf_smpolicycontrol_build_delete,
-                sess, stream, state, NULL);
+                sess, NULL, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         } else if (UDM_SDM_SUBSCRIBED(sess)) {
@@ -866,7 +865,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_SDM,
                 NULL,
                 smf_nudm_sdm_build_subscription_delete,
-                sess, stream, state, NULL);
+                sess, NULL, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         } else {
@@ -876,7 +875,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_UECM,
                 NULL,
                 smf_nudm_uecm_build_deregistration,
-                sess, stream, state, NULL);
+                sess, NULL, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         }
@@ -888,7 +887,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_SDM,
                 NULL,
                 smf_nudm_sdm_build_subscription_delete,
-                sess, stream, state, NULL);
+                sess, NULL, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         } else {
@@ -898,7 +897,7 @@ int smf_sbi_cleanup_session(
                 OGS_SBI_SERVICE_TYPE_NUDM_UECM,
                 NULL,
                 smf_nudm_uecm_build_deregistration,
-                sess, stream, state, NULL);
+                sess, NULL, state, NULL);
             ogs_expect(r == OGS_OK);
             ogs_assert(r != OGS_ERROR);
         }
@@ -909,7 +908,7 @@ int smf_sbi_cleanup_session(
             OGS_SBI_SERVICE_TYPE_NUDM_UECM,
             NULL,
             smf_nudm_uecm_build_deregistration,
-            sess, stream, state, NULL);
+            sess, NULL, state, NULL);
         ogs_expect(r == OGS_OK);
         ogs_assert(r != OGS_ERROR);
         break;

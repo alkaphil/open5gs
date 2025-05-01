@@ -1737,7 +1737,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
      * sessions, and may overlap with AMF’s concurrent Create Session.
      */
                         r = smf_sbi_cleanup_session(
-                                sess, NULL,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_AMF_HR,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -1753,9 +1753,11 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                         OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
 
                     } else {
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
 
                         r = smf_sbi_cleanup_session(
-                                sess, stream,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_AMF,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -1780,7 +1782,7 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                                 ogs_sbi_send_http_status_no_content(stream));
 
                         r = smf_sbi_cleanup_session(
-                                sess, NULL,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_AMF_HR,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -1796,9 +1798,11 @@ void smf_gsm_state_wait_pfcp_deletion(ogs_fsm_t *s, smf_event_t *e)
                         OGS_FSM_TRAN(s, smf_gsm_state_session_will_release);
 
                     } else {
+                        ogs_assert(true ==
+                                ogs_sbi_send_http_status_no_content(stream));
 
                         r = smf_sbi_cleanup_session(
-                                sess, stream,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_AMF,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -2094,8 +2098,11 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     ogs_warn("[%s:%d] Session Release [PFCP-Delete-Trigger:%d]",
                         smf_ue->supi, sess->psi, e->h.sbi.state);
 
+                    ogs_assert(true ==
+                            ogs_sbi_send_http_status_no_content(stream));
+
                     r = smf_sbi_cleanup_session(
-                            sess, stream,
+                            sess,
                             SMF_UECM_STATE_DEREG_BY_AMF,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
@@ -2144,7 +2151,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     SWITCH(sbi_message->h.resource.component[2])
                     CASE(OGS_SBI_RESOURCE_NAME_MODIFY)
                         r = smf_sbi_cleanup_session(
-                                sess, NULL,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_N1N2_HR,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -2219,7 +2226,7 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                     UDM_SDM_CLEAR(sess);
 
                     r = smf_sbi_cleanup_session(
-                            sess, stream, e->h.sbi.state,
+                            sess, e->h.sbi.state,
                             SMF_SBI_CLEANUP_MODE_CONTEXT_ONLY);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
@@ -2320,8 +2327,11 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                             ogs_error("No N1-N2 Released Stream [%d]",
                                         sess->n1_n2_released_stream_id);
                     } else {
+                        ogs_assert(true ==
+                                smf_sbi_send_sm_context_status_notify(sess));
+
                         r = smf_sbi_cleanup_session(
-                                sess, NULL,
+                                sess,
                                 SMF_UECM_STATE_DEREG_BY_N1N2,
                                 SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                         ogs_expect(r == OGS_OK);
@@ -2377,8 +2387,11 @@ void smf_gsm_state_wait_5gc_n1_n2_release(ogs_fsm_t *s, smf_event_t *e)
                         ogs_error("No N1-N2 Released Stream [%d]",
                                     sess->n1_n2_released_stream_id);
                 } else {
+                    ogs_assert(true ==
+                            smf_sbi_send_sm_context_status_notify(sess));
+
                     r = smf_sbi_cleanup_session(
-                            sess, NULL,
+                            sess,
                             SMF_UECM_STATE_DEREG_BY_N1N2,
                             SMF_SBI_CLEANUP_MODE_POLICY_FIRST);
                     ogs_expect(r == OGS_OK);
@@ -2681,7 +2694,7 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
                         }
 
                         r = smf_sbi_cleanup_session(
-                                sess, stream, e->h.sbi.state,
+                                sess, e->h.sbi.state,
                                 SMF_SBI_CLEANUP_MODE_SUBSCRIPTION_FIRST);
                         ogs_expect(r == OGS_OK);
                         ogs_assert(r != OGS_ERROR);
@@ -2732,7 +2745,7 @@ void smf_gsm_state_5gc_session_will_deregister(ogs_fsm_t *s, smf_event_t *e)
                     UDM_SDM_CLEAR(sess);
 
                     r = smf_sbi_cleanup_session(
-                            sess, stream, e->h.sbi.state,
+                            sess, e->h.sbi.state,
                             SMF_SBI_CLEANUP_MODE_CONTEXT_ONLY);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);

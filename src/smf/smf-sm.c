@@ -1053,15 +1053,10 @@ void smf_state_operational(ogs_fsm_t *s, smf_event_t *e)
                         &sess->serving_plmn_id, &sess->s_nssai,
                         SMF_METR_CTR_SM_PDUSESSIONCREATIONSUCC, 1);
             } else if (state == SMF_UECM_STATE_DEREG_BY_AMF) {
-                /* SMF Deregistration */
-                ogs_assert(stream);
-                ogs_assert(true == ogs_sbi_send_http_status_no_content(stream));
                 SMF_SESS_CLEAR(sess);
             } else if (state == SMF_UECM_STATE_DEREG_BY_AMF_HR) {
                 SMF_SESS_CLEAR(sess);
             } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2) {
-                /* SMF Deregistration */
-                ogs_assert(true == smf_sbi_send_sm_context_status_notify(sess));
                 SMF_SESS_CLEAR(sess);
             } else if (state == SMF_UECM_STATE_DEREG_BY_N1N2_HR) {
                 ogs_assert(true == smf_sbi_send_status_notify(sess));

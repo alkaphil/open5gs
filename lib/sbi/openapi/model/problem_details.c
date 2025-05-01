@@ -15,7 +15,7 @@ OpenAPI_problem_details_t *OpenAPI_problem_details_create(
     OpenAPI_list_t *invalid_params,
     char *supported_features,
     OpenAPI_access_token_err_t *access_token_error,
-    OpenAPI_access_token_req_t *access_token_request,
+    OpenAPI_access_token_req_1_t *access_token_request,
     char *nrf_id
 )
 {
@@ -81,7 +81,7 @@ void OpenAPI_problem_details_free(OpenAPI_problem_details_t *problem_details)
         problem_details->access_token_error = NULL;
     }
     if (problem_details->access_token_request) {
-        OpenAPI_access_token_req_free(problem_details->access_token_request);
+        OpenAPI_access_token_req_1_free(problem_details->access_token_request);
         problem_details->access_token_request = NULL;
     }
     if (problem_details->nrf_id) {
@@ -181,7 +181,7 @@ cJSON *OpenAPI_problem_details_convertToJSON(OpenAPI_problem_details_t *problem_
     }
 
     if (problem_details->access_token_request) {
-    cJSON *access_token_request_local_JSON = OpenAPI_access_token_req_convertToJSON(problem_details->access_token_request);
+    cJSON *access_token_request_local_JSON = OpenAPI_access_token_req_1_convertToJSON(problem_details->access_token_request);
     if (access_token_request_local_JSON == NULL) {
         ogs_error("OpenAPI_problem_details_convertToJSON() failed [access_token_request]");
         goto end;
@@ -220,7 +220,7 @@ OpenAPI_problem_details_t *OpenAPI_problem_details_parseFromJSON(cJSON *problem_
     cJSON *access_token_error = NULL;
     OpenAPI_access_token_err_t *access_token_error_local_nonprim = NULL;
     cJSON *access_token_request = NULL;
-    OpenAPI_access_token_req_t *access_token_request_local_nonprim = NULL;
+    OpenAPI_access_token_req_1_t *access_token_request_local_nonprim = NULL;
     cJSON *nrf_id = NULL;
     type = cJSON_GetObjectItemCaseSensitive(problem_detailsJSON, "type");
     if (type) {
@@ -313,9 +313,9 @@ OpenAPI_problem_details_t *OpenAPI_problem_details_parseFromJSON(cJSON *problem_
 
     access_token_request = cJSON_GetObjectItemCaseSensitive(problem_detailsJSON, "accessTokenRequest");
     if (access_token_request) {
-    access_token_request_local_nonprim = OpenAPI_access_token_req_parseFromJSON(access_token_request);
+    access_token_request_local_nonprim = OpenAPI_access_token_req_1_parseFromJSON(access_token_request);
     if (!access_token_request_local_nonprim) {
-        ogs_error("OpenAPI_access_token_req_parseFromJSON failed [access_token_request]");
+        ogs_error("OpenAPI_access_token_req_1_parseFromJSON failed [access_token_request]");
         goto end;
     }
     }
@@ -357,7 +357,7 @@ end:
         access_token_error_local_nonprim = NULL;
     }
     if (access_token_request_local_nonprim) {
-        OpenAPI_access_token_req_free(access_token_request_local_nonprim);
+        OpenAPI_access_token_req_1_free(access_token_request_local_nonprim);
         access_token_request_local_nonprim = NULL;
     }
     return NULL;

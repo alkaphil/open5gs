@@ -21,6 +21,7 @@
 #define NRF_SM_H
 
 #include "event.h"
+#include "oauth-token.h"
 
 #ifdef __cplusplus
 extern "C" {

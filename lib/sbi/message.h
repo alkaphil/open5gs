@@ -80,6 +80,9 @@ extern "C" {
 #define OGS_SBI_API_V2                              "v2"
 #define OGS_SBI_API_V2_0_0                          "2.0.0"
 
+#define OGS_SBI_RESOURCE_NAME_TOKEN          "token"
+
+
 #define OGS_SBI_RESOURCE_NAME_NF_INSTANCES          "nf-instances"
 #define OGS_SBI_RESOURCE_NAME_SUBSCRIPTIONS         "subscriptions"
 #define OGS_SBI_RESOURCE_NAME_NF_STATUS_NOTIFY      "nf-status-notify"
@@ -574,6 +577,9 @@ typedef struct ogs_sbi_message_s {
     OpenAPI_ue_context_transfer_rsp_data_t *UeContextTransferRspData;
     OpenAPI_ue_reg_status_update_req_data_t *UeRegStatusUpdateReqData;
     OpenAPI_ue_reg_status_update_rsp_data_t *UeRegStatusUpdateRspData;
+    OpenAPI_access_token_req_t *AccessTokenRequest;
+    OpenAPI_access_token_rsp_t *AccessTokenResponse;
+    OpenAPI_access_token_err_t *AccessTokenError;
 
     ogs_sbi_links_t *links;
 

@@ -203,6 +203,14 @@ void ogs_sbi_message_free(ogs_sbi_message_t *message)
         OpenAPI_ue_reg_status_update_req_data_free(message->UeRegStatusUpdateReqData);
     if (message->UeRegStatusUpdateRspData)
         OpenAPI_ue_reg_status_update_rsp_data_free(message->UeRegStatusUpdateRspData);
+    if (message->AccessTokenRequest)
+        OpenAPI_access_token_req_free(message->AccessTokenRequest);
+    if (message->AccessTokenResponse)
+        OpenAPI_access_token_rsp_free(message->AccessTokenResponse);
+    if (message->AccessTokenError)
+        OpenAPI_access_token_err_free(message->AccessTokenError);
+    
+    
     if (message->links) {
         OpenAPI_clear_and_free_string_list(message->links->items);
         if (message->links->self)
@@ -1438,6 +1446,18 @@ static char *build_json(ogs_sbi_message_t *message)
         item = OpenAPI_ue_reg_status_update_rsp_data_convertToJSON(
                 message->UeRegStatusUpdateRspData);
         ogs_assert(item);
+    } else if (message->AccessTokenRequest) {
+        item = OpenAPI_access_token_req_convertToJSON(
+                message->AccessTokenRequest);
+        ogs_assert(item);
+    } else if (message->AccessTokenResponse) {
+        item = OpenAPI_access_token_rsp_convertToJSON(
+                message->AccessTokenResponse);
+        ogs_assert(item);
+    } else if (message->AccessTokenError) {
+        item = OpenAPI_access_token_err_convertToJSON(
+                message->AccessTokenError);
+        ogs_assert(item);
     }
 
     if (item) {
@@ -2614,6 +2634,49 @@ static int parse_json(ogs_sbi_message_t *message,
                 }
                 break;
 
+            DEFAULT
+                rv = OGS_ERROR;
+                ogs_error("Unknown resource name [%s]",
+                        message->h.resource.component[0]);
+            END
+            break;
+        
+        CASE(OGS_SBI_SERVICE_NAME_OAUTH2)
+            SWITCH(message->h.resource.component[0])
+            CASE(OGS_SBI_RESOURCE_NAME_TOKEN)
+                SWITCH(message->h.method)
+                CASE(OGS_SBI_HTTP_METHOD_POST)
+                    if (message->res_status == 400) {
+                        message->AccessTokenError =
+                            OpenAPI_access_token_err_parseFromJSON(item);
+                        if (!message->AccessTokenError) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else if (message->res_status < 300 && message->res_status >= 200) {
+                        message->AccessTokenResponse =
+                            OpenAPI_access_token_rsp_parseFromJSON(item);
+                        if (!message->AccessTokenResponse) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else if (message->res_status == 0) {
+                        message->AccessTokenRequest =
+                            OpenAPI_access_token_req_parseFromJSON(item);
+                        if (!message->AccessTokenRequest) {
+                            rv = OGS_ERROR;
+                            ogs_error("JSON parse error");
+                        }
+                    } else {
+                        ogs_error("HTTP ERROR Status : %d", message->res_status);
+                    }
+                    break;
+                DEFAULT
+                    rv = OGS_ERROR;
+                    ogs_error("JSON parse error");
+                END
+                break;
+                
             DEFAULT
                 rv = OGS_ERROR;
                 ogs_error("Unknown resource name [%s]",

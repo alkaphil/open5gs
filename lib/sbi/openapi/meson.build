@@ -35,6 +35,7 @@ libsbi_openapi_sources = files('''
     model/access_tech.c
     model/access_token_err.c
     model/access_token_req.c
+    model/access_token_rsp.c
     model/access_type.c
     model/access_type_rm.c
     model/acc_net_charging_address.c
@@ -1367,6 +1368,11 @@ libsbi_openapi_sources = files('''
     model/wlan_performance_req.c
     model/wlan_per_ss_id_performance_info.c
     model/wlan_per_ts_performance_info.c
+
+    model/access_token_claims_aud.c
+    model/access_token_claims.c
+    model/access_token_req_1.c
+    model/access_token_rsp.c
 '''.split())
 
 libsbi_openapi_inc = include_directories('.')

@@ -95,6 +95,9 @@ typedef enum {
     OGS_SBI_MAX_NUM_OF_SERVICE_TYPE,
 } ogs_sbi_service_type_e;
 
+
+#define OGS_SBI_SERVICE_NAME_OAUTH2 "oauth2"
+
 #define OGS_SBI_SERVICE_NAME_NNRF_NFM "nnrf-nfm"
 #define OGS_SBI_SERVICE_NAME_NNRF_DISC "nnrf-disc"
 #define OGS_SBI_SERVICE_NAME_NNRF_OAUTH2 "nnrf-oauth2"

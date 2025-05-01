@@ -88,6 +88,9 @@
 #include "model/ue_context_transfer_rsp_data.h"
 #include "model/ue_reg_status_update_req_data.h"
 #include "model/ue_reg_status_update_rsp_data.h"
+#include "model/access_token_req.h"
+#include "model/access_token_rsp.h"
+#include "model/access_token_err.h"
 
 #include "custom/links.h"
 

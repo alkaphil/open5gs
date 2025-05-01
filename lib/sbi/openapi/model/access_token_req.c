@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "access_token_req.h"
 
-char *OpenAPI_grant_typeaccess_token_req_ToString(OpenAPI_access_token_req_grant_type_e grant_type)
+char *OpenAPI_access_token_req_grant_type_ToString(OpenAPI_access_token_req_grant_type_e grant_type)
 {
     const char *grant_typeArray[] =  { "NULL", "client_credentials" };
     size_t sizeofArray = sizeof(grant_typeArray) / sizeof(grant_typeArray[0]);
@@ -14,7 +14,7 @@ char *OpenAPI_grant_typeaccess_token_req_ToString(OpenAPI_access_token_req_grant
         return (char *)"Unknown";
 }
 
-OpenAPI_access_token_req_grant_type_e OpenAPI_grant_typeaccess_token_req_FromString(char* grant_type)
+OpenAPI_access_token_req_grant_type_e OpenAPI_access_token_req_grant_type_FromString(char* grant_type)
 {
     int stringToReturn = 0;
     const char *grant_typeArray[] =  { "NULL", "client_credentials" };
@@ -179,7 +179,7 @@ cJSON *OpenAPI_access_token_req_convertToJSON(OpenAPI_access_token_req_t *access
         ogs_error("OpenAPI_access_token_req_convertToJSON() failed [grant_type]");
         return NULL;
     }
-    if (cJSON_AddStringToObject(item, "grant_type", OpenAPI_grant_typeaccess_token_req_ToString(access_token_req->grant_type)) == NULL) {
+    if (cJSON_AddStringToObject(item, "grant_type", OpenAPI_access_token_req_grant_type_ToString(access_token_req->grant_type)) == NULL) {
         ogs_error("OpenAPI_access_token_req_convertToJSON() failed [grant_type]");
         goto end;
     }
@@ -422,7 +422,7 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
         ogs_error("OpenAPI_access_token_req_parseFromJSON() failed [grant_type]");
         goto end;
     }
-    grant_typeVariable = OpenAPI_grant_typeaccess_token_req_FromString(grant_type->valuestring);
+    grant_typeVariable = OpenAPI_access_token_req_grant_type_FromString(grant_type->valuestring);
 
     nf_instance_id = cJSON_GetObjectItemCaseSensitive(access_token_reqJSON, "nfInstanceId");
     if (!nf_instance_id) {

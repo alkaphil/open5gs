@@ -255,6 +255,42 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                         message.h.resource.component[0], NULL));
             END
             break;
+            
+            
+        CASE(OGS_SBI_SERVICE_NAME_OAUTH2)
+
+            SWITCH(message.h.resource.component[0])
+            CASE(OGS_SBI_RESOURCE_NAME_TOKEN)
+
+                SWITCH(message.h.method)
+                CASE(OGS_SBI_HTTP_METHOD_POST)
+                    ogs_assert(message.AccessTokenRequest);
+                    oauth_handler(message, stream);
+                    break;
+                DEFAULT
+                    ogs_error("Invalid HTTP method [%s]",
+                            message.h.method);
+                    ogs_assert(true ==
+                        ogs_sbi_server_send_error(stream,
+                            OGS_SBI_HTTP_STATUS_FORBIDDEN, &message,
+                            "Invalid HTTP method", message.h.method,
+                            NULL));
+                END
+
+                break;
+
+            DEFAULT
+                ogs_error("Invalid resource name [%s]",
+                        message.h.resource.component[0]);
+                ogs_assert(true ==
+                    ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
+                        "Invalid resource name",
+                        message.h.resource.component[0], NULL));
+            END
+            break;
+            
+
 
         DEFAULT
             ogs_error("Invalid API name [%s]", message.h.service.name);

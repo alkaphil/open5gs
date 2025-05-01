@@ -25,6 +25,8 @@
 
 #include "nrf-sm.h"
 #include "timer.h"
+#include "oauth-handler.h"
+#include "oauth-token.h"
 
 #ifdef __cplusplus
 extern "C" {

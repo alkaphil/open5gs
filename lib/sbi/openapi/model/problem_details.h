@@ -13,7 +13,7 @@
 #include "../include/keyValuePair.h"
 #include "../include/binary.h"
 #include "access_token_err.h"
-#include "access_token_req.h"
+#include "access_token_req_1.h"
 #include "invalid_param.h"
 
 #ifdef __cplusplus
@@ -32,7 +32,7 @@ typedef struct OpenAPI_problem_details_s {
     OpenAPI_list_t *invalid_params;
     char *supported_features;
     struct OpenAPI_access_token_err_s *access_token_error;
-    struct OpenAPI_access_token_req_s *access_token_request;
+    struct OpenAPI_access_token_req_1_s *access_token_request;
     char *nrf_id;
 } OpenAPI_problem_details_t;
 
@@ -47,7 +47,7 @@ OpenAPI_problem_details_t *OpenAPI_problem_details_create(
     OpenAPI_list_t *invalid_params,
     char *supported_features,
     OpenAPI_access_token_err_t *access_token_error,
-    OpenAPI_access_token_req_t *access_token_request,
+    OpenAPI_access_token_req_1_t *access_token_request,
     char *nrf_id
 );
 void OpenAPI_problem_details_free(OpenAPI_problem_details_t *problem_details);

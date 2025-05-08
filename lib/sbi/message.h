@@ -28,6 +28,10 @@
 extern "C" {
 #endif
 
+
+#include "token-check.h"
+
+
 #define OGS_SBI_HTTP_PORT                           80
 #define OGS_SBI_HTTPS_PORT                          443
 
@@ -263,6 +267,7 @@ extern "C" {
 #define OGS_SBI_ACCEPT                              "Accept"
 #define OGS_SBI_ACCEPT_ENCODING                     "Accept-Encoding"
 #define OGS_SBI_USER_AGENT                          "User-Agent"
+#define OGS_SBI_AUTHORIZATION                       "Authorization"
 #define OGS_SBI_CONTENT_TYPE                        "Content-Type"
 #define OGS_SBI_LOCATION                            "Location"
 #define OGS_SBI_EXPECT                              "Expect"
@@ -434,6 +439,8 @@ typedef struct ogs_sbi_header_s {
         char *component[OGS_SBI_MAX_NUM_OF_RESOURCE_COMPONENT];
     } resource;
 
+    OpenAPI_access_token_rsp_token_type_e auth_type;
+    char* auth_token;
 } ogs_sbi_header_t;
 
 typedef struct ogs_sbi_part_s {

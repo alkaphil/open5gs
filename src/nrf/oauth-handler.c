@@ -51,7 +51,9 @@ char** ogs_split_str(const char* s, const char deli, int* num) {
     return splited_str;
 }
 
+
 int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
+    // char*  error_uri= "https://www.etsi.org/deliver/etsi_ts/129500_129599/129510/18.06.00_60/ts_129510v180600p.pdf";
     ogs_sbi_response_t *response = NULL;
     ogs_sbi_message_t sendmsg;
     OpenAPI_access_token_rsp_t token_response;
@@ -62,15 +64,34 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     memset(&sendmsg, 0, sizeof(sendmsg));
     memset(&token_response, 0, sizeof(token_response));
 
+    if (message.AccessTokenRequest->nf_instance_id == NULL || message.AccessTokenRequest->scope == NULL){
+        char* error_description = NULL;
+        if (message.AccessTokenRequest->nf_instance_id == NULL){
+            error_description = ogs_strdup("The request is missing a required parameter: nfInstanceId.");
+        } else if (message.AccessTokenRequest->scope == NULL){
+            error_description = ogs_strdup("The request is missing a required parameter: scope.");
+        }
+        
+        ogs_error("error_description: [%s]", error_description);
+        sendmsg.AccessTokenError = OpenAPI_access_token_err_create(OpenAPI_access_token_err_ERROR_invalid_request, error_description, NULL);
+        response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+        ogs_assert(response);
+        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+        return false;
+    }
+
 
     if (message.AccessTokenRequest->grant_type != OpenAPI_access_token_req_GRANTTYPE_client_credentials) {
         ogs_error("Unkown Grant-Type [%s]", OpenAPI_access_token_req_grant_type_ToString(message.AccessTokenRequest->grant_type));
 
-        OpenAPI_access_token_err_t access_token_error;
-        memset(&access_token_error, 0, sizeof(access_token_error));
-        access_token_error.error = OpenAPI_access_token_err_ERROR_unsupported_grant_type;
+        // OpenAPI_access_token_err_t access_token_error;
+        // memset(&access_token_error, 0, sizeof(access_token_error));
+        
+        // access_token_error.error = OpenAPI_access_token_err_ERROR_unsupported_grant_type;
 
-        sendmsg.AccessTokenError = &access_token_error;
+        sendmsg.AccessTokenError = OpenAPI_access_token_err_create(OpenAPI_access_token_err_ERROR_unsupported_grant_type,(char*)"The provided grant type is not supported by this authorization server.", NULL);
+        
+
 
         response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
         ogs_assert(response);
@@ -78,20 +99,25 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
         return false;
     }
 
+    // According to TS29.510 Table 6.3.5.2.2-1, the `nfInstanceId` is mandatory
     ogs_sbi_nf_instance_t* sub_nf_instance = ogs_sbi_nf_instance_find(message.AccessTokenRequest->nf_instance_id);
     if (sub_nf_instance == NULL) {
         ogs_error("no subject NF Instance found [%s]", message.AccessTokenRequest->nf_instance_id);
-        ogs_assert(true ==
-            ogs_sbi_server_send_error(stream,
-                OGS_SBI_HTTP_STATUS_FORBIDDEN, &message,
-                "access denied", "",
-                NULL));
+
+        sendmsg.AccessTokenError = OpenAPI_access_token_err_create(OpenAPI_access_token_err_ERROR_invalid_client, NULL, NULL);
+
+        response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_UNAUTHORIZED);
+        ogs_assert(response);
+        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
         return false;
     }
 
+    // According to TS29.510 Table 6.3.5.2.2-1, the `targetNfInstanceId` is NOT mandatory
+    // TODO: The choices here should be made based on the list below:
+    //      1- if targetNfInstanceId is present, it should be checked but not used!
     ogs_sbi_nf_instance_t* target_nf_instance = ogs_sbi_nf_instance_find(message.AccessTokenRequest->target_nf_instance_id);
     if (target_nf_instance == NULL) {
-        ogs_error("no target NF Instance found [%s]", message.AccessTokenRequest->nf_instance_id);
+        ogs_error("Not found [%s]", message.AccessTokenRequest->nf_instance_id);
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND, &message,
@@ -179,16 +205,17 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     char* token = get_token_from_claim(
         ogs_sbi_self()->nf_instance->id,
         sub_nf_instance->id,
-        target_nf_instance->id,
+        OpenAPI_nf_type_ToString(target_nf_instance->nf_type),
         message.AccessTokenRequest->scope,
-        OGS_OAUTH_TOKEN_ALG, OGS_OAUTH_TOKEN_TYPE,
-        &expires_in
+        OGS_OAUTH_TOKEN_ALG, &expires_in
     );
 
     if (token) {
         token_response.access_token = token;
         token_response.expires_in = expires_in;
         token_response.is_expires_in = true;
+        // ogs_info("the end check of toke:[%d]", check_token(token));
+        // message.h.service.name;
     } else {
         ogs_error("no token generated");
         ogs_assert(true ==

@@ -46,12 +46,13 @@ nrf_sources = files('''
     ../main.c
 '''.split())
 
-chilkatlib = meson.get_compiler('c').find_library('chilkat')
+libjwt_dep = dependency('libjwt', required : true)
+libcrypto_dep = dependency('libcrypto', required : true)
 
 executable('open5gs-nrfd',
     sources : nrf_sources,
     c_args : '-DDEFAULT_CONFIG_FILENAME="@0@/nrf.yaml"'.format(open5gs_sysconfdir),
     include_directories : srcinc,
-    dependencies : [libnrf_dep, chilkatlib],
+    dependencies : [libnrf_dep,libcrypto_dep,libjwt_dep],
     install_rpath : libdir,
     install : true)

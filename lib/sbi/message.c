@@ -800,6 +800,7 @@ int ogs_sbi_parse_request(
     ogs_hash_index_t *hi;
     ogs_sbi_discovery_option_t *discovery_option = NULL;
     bool discovery_option_presence = false;
+    // OpenAPI_nf_type_e nf_type = OpenAPI_nf_type_NULL;
 
     ogs_assert(request);
     ogs_assert(message);
@@ -1052,8 +1053,50 @@ int ogs_sbi_parse_request(
         } else if (!ogs_strcasecmp(ogs_hash_this_key(hi),
                     OGS_SBI_CUSTOM_CALLBACK)) {
             message->http.custom.callback = ogs_hash_this_val(hi);
+        } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_AUTHORIZATION)) {
+            char* val = ogs_hash_this_val(hi);
+            char* token = strstr(val, " ") + 1;
+            if (!token) {
+                ogs_error("Header [%s] exists but there is not token found", OGS_SBI_AUTHORIZATION);
+                ogs_sbi_message_free(message);
+                return OGS_ERROR;
+            }
+            char* token_type = ogs_malloc(sizeof(char) * ((token - val) + 1));
+            memset(token_type, 0, (token - val) + 1);
+            strncpy(token_type, val, token - val - 1);
+            
+            message->h.auth_type = OpenAPI_access_token_rsp_token_type_FromString(token_type);
+            message->h.auth_token = ogs_strdup(token);
+            ogs_info("+++++++++++++token:=====================[%s]", token);
+        // } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_USER_AGENT)) {
+        //     char* val = ogs_hash_this_val(hi);
+        //     nf_type = OpenAPI_nf_type_FromString(val);
         }
     }
+
+
+    // ogs_sbi_self()->nrf_instance->id
+    // ogs_sbi_self()->nf_instance.id
+    // nf_type ?= OpenAPI_nf_type_NULL
+    // message->h.service.name
+    
+    if (message->h.auth_token){
+        char* scope = NULL;
+        if (!check_token(message->h.auth_token, &scope)) {
+            ogs_error("Token NOT verifyed!");
+            ogs_sbi_message_free(message);
+            return OGS_ERROR;
+        }
+        if (!scope){
+            ogs_error("Token have no scope!");
+            ogs_sbi_message_free(message);
+            return OGS_ERROR;
+        }
+        ogs_info("this is token scope:[%s]", scope);
+
+    }
+
+
 
     if (parse_content(message, &request->http) != OGS_OK) {
         ogs_error("parse_content() failed");
@@ -1188,6 +1231,8 @@ void ogs_sbi_header_free(ogs_sbi_header_t *h)
     for (i = 0; i < OGS_SBI_MAX_NUM_OF_RESOURCE_COMPONENT &&
                         h->resource.component[i]; i++)
         ogs_free(h->resource.component[i]);
+    
+    if (h->auth_token) ogs_free(h->auth_token);
 }
 
 void ogs_sbi_http_hash_free(ogs_hash_t *hash)

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "access_token_rsp.h"
 
-char *OpenAPI_token_typeaccess_token_rsp_ToString(OpenAPI_access_token_rsp_token_type_e token_type)
+char *OpenAPI_access_token_rsp_token_type_ToString(OpenAPI_access_token_rsp_token_type_e token_type)
 {
     const char *token_typeArray[] =  { "NULL", "Bearer" };
     size_t sizeofArray = sizeof(token_typeArray) / sizeof(token_typeArray[0]);
@@ -14,7 +14,7 @@ char *OpenAPI_token_typeaccess_token_rsp_ToString(OpenAPI_access_token_rsp_token
         return (char *)"Unknown";
 }
 
-OpenAPI_access_token_rsp_token_type_e OpenAPI_token_typeaccess_token_rsp_FromString(char* token_type)
+OpenAPI_access_token_rsp_token_type_e OpenAPI_access_token_rsp_token_type_FromString(char* token_type)
 {
     int stringToReturn = 0;
     const char *token_typeArray[] =  { "NULL", "Bearer" };
@@ -89,7 +89,7 @@ cJSON *OpenAPI_access_token_rsp_convertToJSON(OpenAPI_access_token_rsp_t *access
         ogs_error("OpenAPI_access_token_rsp_convertToJSON() failed [token_type]");
         return NULL;
     }
-    if (cJSON_AddStringToObject(item, "token_type", OpenAPI_token_typeaccess_token_rsp_ToString(access_token_rsp->token_type)) == NULL) {
+    if (cJSON_AddStringToObject(item, "token_type", OpenAPI_access_token_rsp_token_type_ToString(access_token_rsp->token_type)) == NULL) {
         ogs_error("OpenAPI_access_token_rsp_convertToJSON() failed [token_type]");
         goto end;
     }
@@ -140,7 +140,7 @@ OpenAPI_access_token_rsp_t *OpenAPI_access_token_rsp_parseFromJSON(cJSON *access
         ogs_error("OpenAPI_access_token_rsp_parseFromJSON() failed [token_type]");
         goto end;
     }
-    token_typeVariable = OpenAPI_token_typeaccess_token_rsp_FromString(token_type->valuestring);
+    token_typeVariable = OpenAPI_access_token_rsp_token_type_FromString(token_type->valuestring);
 
     expires_in = cJSON_GetObjectItemCaseSensitive(access_token_rspJSON, "expires_in");
     if (expires_in) {

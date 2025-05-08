@@ -1,20 +1,53 @@
 #include "oauth-token.h"
 
-char* get_token_from_claim(const char* iss, const char* sub, const char* aud, const char* scope, const char* algorithm, const char* type, int* expires_in){
-    HCkPrivateKey privKey;
-    BOOL success;
-    HCkJwt jwt;
-    HCkJsonObject jose;
-    HCkJsonObject claims;
-    int curDateTime;
-    const char *token;
+int64_t get_expiration_time(int duration_seconds) {
+    time_t now = time(NULL);  // Get current Unix timestamp (seconds)
+    return now + duration_seconds;  // Add expiration duration
+}
 
-    // Demonstrates how to create a JWT using an RSA private key.
+void jwt_free_str(char* p) {
+    if (p)
+        free(p);
+}
 
-    // This example requires the Chilkat API to have been previously unlocked.
-    // See Global Unlock Sample for sample code.
+char *load_private_key_from_file(const char *filename, size_t *len) {
+    FILE *fp = fopen(filename, "rb");
+    char *buffer = NULL;
+    long file_size;
 
-    privKey = CkPrivateKey_Create();
+    if (!fp) {
+        ogs_error("Error: Cannot open file \"%s\".", filename);
+        return NULL;
+    }
+    fseek(fp, 0, SEEK_END);
+    file_size = ftell(fp);
+    rewind(fp);
+
+    buffer = (char *)malloc(file_size + 1);
+    if (!buffer) {
+        ogs_error("Error: Memory allocation failed for file \"%s\".", filename);
+        fclose(fp);
+        return NULL;
+    }
+    if (fread(buffer, 1, file_size, fp) != (size_t)file_size) {
+        ogs_error("Error: Failed to read file \"%s\".", filename);
+        fclose(fp);
+        free(buffer);
+        return NULL;
+    }
+    buffer[file_size] = '\0';
+    if (len)
+        *len = file_size;
+    fclose(fp);
+    return buffer;
+}
+
+char* get_token_from_claim(const char* iss, const char* sub, const char* aud, const char* scope, jwt_alg_t algorithm, int* expires_in){
+    int64_t curDateTime = get_expiration_time(3600);
+    jwt_t *jwt = NULL;
+    char *token = NULL;
+    size_t priv_key_len = 0;
+    char *priv_key = NULL;
 
     if (ogs_sbi_self()->tls.server.private_key == NULL) {
         ogs_error("no nrf.tls.server.private_key has been set in the configs.");
@@ -22,52 +55,53 @@ char* get_token_from_claim(const char* iss, const char* sub, const char* aud, co
     }
 
     // Load an RSA private key from a PEM file.
-    success = CkPrivateKey_LoadEncryptedPemFile(privKey,ogs_sbi_self()->tls.server.private_key,"");
-    if (success != TRUE) {
-        ogs_error("%s",CkPrivateKey_lastErrorText(privKey));
-        CkPrivateKey_Dispose(privKey);
+    priv_key = load_private_key_from_file(ogs_sbi_self()->tls.server.private_key,&priv_key_len);
+    if (!priv_key) {
+        ogs_error("can not open private key from: %s",ogs_sbi_self()->tls.server.private_key);
+        return NULL;
+    }
+    // Create a new JWT object for signing
+    if (jwt_new(&jwt) != 0) {
+        ogs_error("Error: Failed to create JWT object.");
+        free(priv_key);
         return NULL;
     }
 
-    jwt = CkJwt_Create();
+    // Set the algorithm to RS256 and pass the private key for signing.
+    if (jwt_set_alg(jwt, algorithm, priv_key, priv_key_len) != 0) {
+        ogs_error("Error: Failed to set JWT algorithm with the provided private key.");
+        jwt_free(jwt);
+        free(priv_key);
+        return NULL;
+    }
 
-    // Build the JOSE header
-    jose = CkJsonObject_Create();
-    // Use RS256.  Pass the string "RS384" or "RS512" to use RSA with SHA-384 or SHA-512.
-    ogs_assert(CkJsonObject_AppendString(jose,"alg",algorithm) == TRUE);
-    ogs_assert(CkJsonObject_AppendString(jose,"typ",type) == TRUE);
+    // Add example claims to the token
+    jwt_add_grant(jwt, "iss", iss);             // Issuer claim
+    jwt_add_grant(jwt, "sub", sub);              // Subject claim
+    jwt_add_grant(jwt, "aud", aud);              // Audience claim
+    jwt_add_grant(jwt, "scope", scope);              // Scope claim
+    jwt_add_grant_int(jwt, "exp", curDateTime);                 // Expiration time (example Unix timestamp)
 
-    // Now build the JWT claims (also known as the payload)
-    claims = CkJsonObject_Create();
-    ogs_assert(CkJsonObject_AppendString(claims,"iss",iss) == TRUE);
-    ogs_assert(CkJsonObject_AppendString(claims,"sub",sub) == TRUE);
-    ogs_assert(CkJsonObject_AppendString(claims,"aud",aud) == TRUE);
-    ogs_assert(CkJsonObject_AppendString(claims,"scope",scope) == TRUE);
+    // Encode (sign) the JWT token and retrieve it as a string
+    token = jwt_encode_str(jwt);
+    if (!token) {
+        ogs_error("Error: Failed to encode JWT token.");
+        jwt_free(jwt);
+        free(priv_key);
+        return NULL;
+    }
 
-    // Set the timestamp of when the JWT was created to now.
-    curDateTime = CkJwt_GenNumericDate(jwt,0);
-    ogs_assert(CkJsonObject_AddIntAt(claims,-1,"iat",curDateTime) == TRUE);
-
-    // Set the "not process before" timestamp to now.
-    ogs_assert(CkJsonObject_AddIntAt(claims,-1,"nbf",curDateTime) == TRUE);
-
-    // Set the timestamp defining an expiration time (end time) for the token
-    // to be now + 1 hour (3600 seconds)
-    *expires_in = curDateTime + 3600;
-    ogs_assert(CkJsonObject_AddIntAt(claims,-1,"exp",curDateTime + 3600) == TRUE);
-
-    // Produce the smallest possible JWT:
-    CkJwt_putAutoCompact(jwt,TRUE);
-
-    // Create the JWT token.  This is where the RSA signature is created.
-    token = CkJwt_createJwtPk(jwt,CkJsonObject_emit(jose),CkJsonObject_emit(claims),privKey);
+    *expires_in = curDateTime;
     
-    char* ogs_token = ogs_calloc(1, strlen(token));
+    char* ogs_token = ogs_malloc(strlen(token) + 1);
+    memset(ogs_token, 0, strlen(token) + 1);
     memcpy(ogs_token, token, strlen(token));
 
-    CkPrivateKey_Dispose(privKey);
-    CkJwt_Dispose(jwt);
-    CkJsonObject_Dispose(jose);
-    CkJsonObject_Dispose(claims);
+
+    // Clean up all allocated memory and JWT objects
+    free(priv_key);
+    jwt_free_str(token);
+    jwt_free(jwt);
+
     return ogs_token;
 }

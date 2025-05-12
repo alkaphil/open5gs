@@ -1,5 +1,64 @@
 #include "token-check.h"
 
+
+int ogs_num_delimeter2(const char* s, const char deli) {
+    if (s == NULL)
+        return 0;
+    if (strlen(s) <= 0) {
+        return 0;
+    }
+    int n = 1;
+    int i = 0;
+    for (i = 0; s[i]; i++){
+        if (s[i] == deli)
+            n++;
+    }
+    return n;
+}
+
+int ogs_find_string(const char* s,const char deli, const char* service_name) {
+    char** splited_str = NULL;
+    if (s == NULL)
+        return false;
+    
+    int num = ogs_num_delimeter2(s, ' ');
+    if (num > 0) {
+        splited_str = ogs_malloc(num * sizeof(char*));
+    }
+
+    int j = 0;
+    int last = 0;
+    int len = strlen(s);
+    int i = 0;
+    for (i = 0; s[i]; i++){
+        if (s[i] == deli) {
+            int diff = i - last;
+            char* temp = ogs_malloc(diff + 1);
+            memset(temp, 0, diff + 1);
+            memcpy(temp, &s[last], diff);
+            splited_str[j++] = temp;
+            last = i + 1;
+        }
+    }
+    if (last < len) {
+        int diff = len - last;
+        char* temp = ogs_malloc(diff + 1);
+        memset(temp, 0, diff + 1);
+        memcpy(temp, &s[last], diff + 1);
+        splited_str[j++] = temp;
+    }
+    int k;
+    for(k = 0; k < num; k++) {
+        if (strcmp(service_name, splited_str[k]) == 0){
+
+            return true;
+        }
+    }
+
+
+    return false;
+}
+
 char *load_public_key_from_cert_file(const char *cert_file, size_t *len) {
     FILE *fp = fopen(cert_file, "r");
     if (!fp) {
@@ -62,13 +121,14 @@ char *load_public_key_from_cert_file(const char *cert_file, size_t *len) {
 
 
 
-int check_token(char* token, char** scope){
+int check_token(char* token, char* service_name){
     int ret = 0;
     const long leeway = 60;
     jwt_t *jwt = NULL;
     jwt_t *decoded_jwt = NULL;
     size_t cert_len = 0;
     char *cert = NULL;
+    char *scope = NULL;
 
     // Load the certificate from file (used for token verification)
     cert = load_public_key_from_cert_file("./build/configs/open5gs/tls/nrf.crt", &cert_len);
@@ -90,7 +150,13 @@ int check_token(char* token, char** scope){
             ogs_error("token expired");
             return false;
         }
-        *scope = ogs_strdup(jwt_get_grant(decoded_jwt, "scope"));
+        else{
+            scope = ogs_strdup(jwt_get_grant(decoded_jwt, "scope"));
+  
+            if (!ogs_find_string(scope, ' ', service_name)){
+                return false;
+            }
+        }
     }
 
     // Clean up all allocated memory and JWT objects

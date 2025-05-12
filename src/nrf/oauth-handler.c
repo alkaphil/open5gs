@@ -114,7 +114,11 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
 
     // According to TS29.510 Table 6.3.5.2.2-1, the `targetNfInstanceId` is NOT mandatory
     // TODO: The choices here should be made based on the list below:
-    //      1- if targetNfInstanceId is present, it should be checked but not used!
+    //      1) if targetNfInstanceId is present, it should be checked but the NFType should be infered and the NFType should be used
+    //      2) if targetNfInstanceId is not present, we should fall-back to targetNfType
+    //      3) if targetNfInstanceId and targetNfType are not present, we should infer NFType from scope
+    //          3-1) infer the NFType from the first scope
+    //          3-2) if the the second or other scopes are from different NFTypes, we should return error
     ogs_sbi_nf_instance_t* target_nf_instance = ogs_sbi_nf_instance_find(message.AccessTokenRequest->target_nf_instance_id);
     if (target_nf_instance == NULL) {
         ogs_error("Not found [%s]", message.AccessTokenRequest->nf_instance_id);

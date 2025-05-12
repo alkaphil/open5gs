@@ -1079,24 +1079,14 @@ int ogs_sbi_parse_request(
     // ogs_sbi_self()->nf_instance.id
     // nf_type ?= OpenAPI_nf_type_NULL
     // message->h.service.name
-    
-    if (message->h.auth_token){
-        char* scope = NULL;
-        if (!check_token(message->h.auth_token, &scope)) {
+        
+    if (message->h.auth_token && message->h.service.name){
+        if (!check_token(message->h.auth_token, message->h.service.name)) {
             ogs_error("Token NOT verifyed!");
             ogs_sbi_message_free(message);
             return OGS_ERROR;
         }
-        if (!scope){
-            ogs_error("Token have no scope!");
-            ogs_sbi_message_free(message);
-            return OGS_ERROR;
-        }
-        ogs_info("this is token scope:[%s]", scope);
-
     }
-
-
 
     if (parse_content(message, &request->http) != OGS_OK) {
         ogs_error("parse_content() failed");

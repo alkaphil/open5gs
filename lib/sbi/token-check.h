@@ -14,9 +14,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+int ogs_num_delimeter2(const char* s, const char deli);
+int ogs_find_string(const char* s,const char deli, const char* service_name);
 char *load_public_key_from_cert_file(const char *cert_file, size_t *len);
-int check_token(char*, char**);
+int check_token(char*, char*);
 #ifdef __cplusplus
 }
 #endif

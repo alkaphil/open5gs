@@ -108,6 +108,9 @@ typedef struct ogs_sbi_context_s {
 
     int num_of_service_name;
     const char *service_name[OGS_SBI_MAX_NUM_OF_SERVICE_TYPE];
+
+    ogs_hash_t *token_list;
+    int current_token_idx;
 } ogs_sbi_context_t;
 
 typedef struct ogs_sbi_nf_instance_s {
@@ -124,6 +127,7 @@ typedef struct ogs_sbi_nf_instance_s {
     ogs_timer_t *t_heartbeat_interval;      /* heartbeat interval */
     ogs_timer_t *t_no_heartbeat;            /* check heartbeat */
     ogs_timer_t *t_validity;                /* check validation */
+    ogs_timer_t *t_token;                /* token fetch */
 
     /*
      * Issues #2034
@@ -611,6 +615,9 @@ bool ogs_sbi_plmn_id_in_vplmn(ogs_plmn_id_t *plmn_id);
 bool ogs_sbi_fqdn_in_vplmn(char *fqdn);
 
 void ogs_sbi_keylog_callback(const SSL *ssl, const char *line);
+
+char* ogs_sbi_token_find_by_scope(char* scope);
+bool ogs_sbi_token_add_or_update(char* scope, char* token);
 
 #ifdef __cplusplus
 }

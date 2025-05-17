@@ -380,6 +380,26 @@ ogs_sbi_request_t *ogs_sbi_build_request(ogs_sbi_message_t *message)
                 return NULL;
             }
         }
+
+        if (strcmp(message->h.service.name, OGS_SBI_SERVICE_NAME_OAUTH2)) {
+            ogs_sbi_service_type_e service_type = ogs_sbi_service_type_from_name(message->h.service.name);
+            OpenAPI_nf_type_e target_nf_type = ogs_sbi_service_type_to_nf_type(service_type);
+            if (target_nf_type != OpenAPI_nf_type_NRF){
+                char* token = ogs_sbi_token_find_by_scope(message->h.service.name);
+                if (!token) {
+                    // TODO: error
+                } else {
+                    // TODO: add token to the header
+                    // request->h.auth_token = ogs_strdup(token);
+                    // request->h.auth_type = OpenAPI_access_token_rsp_TOKENTYPE_Bearer;
+                    char* auth_header = ogs_malloc(sizeof("Bearer ") + strlen(token) + 1);
+                    memset(auth_header, 0 , sizeof("Bearer ") + strlen(token) + 1);
+                    strncpy(auth_header, "Bearer ", sizeof("Bearer "));
+                    strncpy(auth_header + sizeof("Bearer "), token, strlen(token));
+                    ogs_sbi_header_set(request->http.headers, OGS_SBI_AUTHORIZATION, auth_header);
+                }
+            }
+        }
     }
 
     /* Discovery Parameter */

@@ -58,7 +58,6 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     ogs_sbi_message_t sendmsg;
     OpenAPI_access_token_rsp_t token_response;
     char* current_scope = NULL;
-    ogs_sbi_nf_service_t* current_service = NULL;
     int n = 0;
 
     memset(&sendmsg, 0, sizeof(sendmsg));
@@ -119,53 +118,94 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     //      3) if targetNfInstanceId and targetNfType are not present, we should infer NFType from scope
     //          3-1) infer the NFType from the first scope
     //          3-2) if the the second or other scopes are from different NFTypes, we should return error
-    ogs_sbi_nf_instance_t* target_nf_instance = ogs_sbi_nf_instance_find(message.AccessTokenRequest->target_nf_instance_id);
-    if (target_nf_instance == NULL) {
-        ogs_error("Not found [%s]", message.AccessTokenRequest->nf_instance_id);
-        ogs_assert(true ==
-            ogs_sbi_server_send_error(stream,
-                OGS_SBI_HTTP_STATUS_NOT_FOUND, &message,
-                "no such target NF found", "",
-                NULL));
-        return false;
+    OpenAPI_nf_type_e target_nf_type = OpenAPI_nf_type_NULL;
+    
+    if (message.AccessTokenRequest->target_nf_type != OpenAPI_nf_type_NULL) {
+        target_nf_type = message.AccessTokenRequest->target_nf_type;
+        // if (target_nf_type == OpenAPI_nf_type_NULL){
+        //     ogs_error("Not found the NF type for access token [%s]", OpenAPI_nf_type_ToString(message.AccessTokenRequest->target_nf_type));
+        //     ogs_assert(true ==
+        //         ogs_sbi_server_send_error(stream,
+        //             OGS_SBI_HTTP_STATUS_NOT_FOUND, &message,
+        //             "No such NF type found", "",
+        //             NULL));
+        //     return false;
+        // }
     }
+    
+    if (message.AccessTokenRequest->target_nf_instance_id){
+        ogs_sbi_nf_instance_t* target_nf_instance = ogs_sbi_nf_instance_find(message.AccessTokenRequest->target_nf_instance_id);
+        if (target_nf_instance == NULL) {
+            ogs_error("Not found [%s] for access token", message.AccessTokenRequest->nf_instance_id);
+            ogs_assert(true ==
+                ogs_sbi_server_send_error(stream,
+                    OGS_SBI_HTTP_STATUS_NOT_FOUND, &message,
+                    "No such target NF found", "",
+                    NULL));
+            return false;
+        }
+        ogs_info("message.AccessTokenRequest->target_nf_type [%s]", OpenAPI_nf_type_ToString(message.AccessTokenRequest->target_nf_type));
+        ogs_info("target_nf_instance->nf_type [%s]", OpenAPI_nf_type_ToString(target_nf_instance->nf_type));
+        ogs_info("target_nf_type [%s]", OpenAPI_nf_type_ToString(target_nf_type));
 
-    char** splitted_scopes = ogs_split_str(message.AccessTokenRequest->scope, ' ', &n);
+        if (target_nf_type == OpenAPI_nf_type_NULL){
+            target_nf_type = target_nf_instance->nf_type;
+        } else {
+            // OpenAPI_nf_type_ToString
+            if (target_nf_type != target_nf_instance->nf_type){
+                ogs_error("No [%s] exists with [%s] id.", OpenAPI_nf_type_ToString(target_nf_type), target_nf_instance->id);
+                ogs_assert(true ==
+                    ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_NOT_FOUND, &message,
+                        "The target NF type dose no match with instance id requested for access token", "",
+                        NULL));
+                return false;                
+            }
+        }
+        
+    }
+    char* scope = message.AccessTokenRequest->scope;
+    char** splitted_scopes = ogs_split_str(scope, ' ', &n);
     if (splitted_scopes) {
+        if (target_nf_type == OpenAPI_nf_type_NULL){
+            ogs_sbi_service_type_e first_scope = ogs_sbi_service_type_from_name(splitted_scopes[0]);
+            if (first_scope == OGS_SBI_SERVICE_TYPE_NULL) {
+                ogs_error("Do not have this [%s] service name", ogs_sbi_service_type_to_name(first_scope));
+                OpenAPI_access_token_err_t access_token_error;
+                memset(&access_token_error, 0, sizeof(access_token_error));
+                access_token_error.error = OpenAPI_access_token_err_ERROR_invalid_scope;
+
+                sendmsg.AccessTokenError = &access_token_error;
+
+                response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                ogs_assert(response);
+                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                return false;
+            }
+
+            target_nf_type = ogs_sbi_service_type_to_nf_type(first_scope);
+            if (target_nf_type == OpenAPI_nf_type_NULL){
+                ogs_error("No NF type can be inferred from scope [%s].", splitted_scopes[0]);
+                OpenAPI_access_token_err_t access_token_error;
+                memset(&access_token_error, 0, sizeof(access_token_error));
+                access_token_error.error = OpenAPI_access_token_err_ERROR_invalid_scope;
+
+                sendmsg.AccessTokenError = &access_token_error;
+
+                response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                ogs_assert(response);
+                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                return false;
+            }
+        }
+
         int i;
         for(i = 0; i < n; i++) {
             current_scope = splitted_scopes[i];
             if (current_scope) {
-                current_service = ogs_sbi_nf_service_find_by_name(target_nf_instance, current_scope);
-                if (current_service) {
-                    bool permitted = false;
-                    int j = 0;
-                    for (j = 0; j < current_service->num_of_allowed_nf_type; j++) {
-                        if (current_service->allowed_nf_type[j] == sub_nf_instance->nf_type) {
-                            permitted = true;
-                            break;
-                        }
-                    }
-                    if (!permitted) {
-                        ogs_error("NF [%s] of type [%s], requested access to service [%s] for NF type of [%s] which is not permitted", 
-                            sub_nf_instance->id, OpenAPI_nf_type_ToString(sub_nf_instance->nf_type),
-                            current_scope, OpenAPI_nf_type_ToString(target_nf_instance->nf_type)
-                        );
-                        OpenAPI_access_token_err_t access_token_error;
-                        memset(&access_token_error, 0, sizeof(access_token_error));
-                        access_token_error.error = OpenAPI_access_token_err_ERROR_unauthorized_client;
-
-                        sendmsg.AccessTokenError = &access_token_error;
-
-                        response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
-                        ogs_assert(response);
-                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                        return false;
-                    } else {
-                        ogs_info("NF [%s] request for a token for service [%s] at NF [%s]", sub_nf_instance->id, current_service->name, target_nf_instance->id);
-                    }
-                } else {
-                    ogs_error("NF [%s] of type [%s], does not support service [%s]", target_nf_instance->id, OpenAPI_nf_type_ToString(target_nf_instance->nf_type), current_scope);
+                ogs_sbi_service_type_e current_service = ogs_sbi_service_type_from_name(current_scope);
+                if (current_service == OGS_SBI_SERVICE_TYPE_NULL) {
+                    ogs_error("can not infer service type from scope [%s]", current_scope);
                     OpenAPI_access_token_err_t access_token_error;
                     memset(&access_token_error, 0, sizeof(access_token_error));
                     access_token_error.error = OpenAPI_access_token_err_ERROR_invalid_scope;
@@ -177,6 +217,77 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                     return false;
                 }
+
+                ogs_sbi_nf_instance_t* scope_target = ogs_sbi_nf_instance_find_by_service_type(current_service, sub_nf_instance->nf_type);
+                if (!scope_target) {
+                    ogs_error("NF [%s] of type [%s], requested access to service [%s] for NF type of [%s] which is not permitted", 
+                        sub_nf_instance->id, OpenAPI_nf_type_ToString(sub_nf_instance->nf_type),
+                        current_scope, OpenAPI_nf_type_ToString(target_nf_type)
+                    );
+                    OpenAPI_access_token_err_t access_token_error;
+                    memset(&access_token_error, 0, sizeof(access_token_error));
+                    access_token_error.error = OpenAPI_access_token_err_ERROR_unauthorized_client;
+            
+                    sendmsg.AccessTokenError = &access_token_error;
+            
+                    response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                    ogs_assert(response);
+                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                    return false;
+                }
+                if (target_nf_type != scope_target->nf_type) {
+                    ogs_error("NF of type [%s], does not support service [%s]",  OpenAPI_nf_type_ToString(target_nf_type), current_scope);
+                    OpenAPI_access_token_err_t access_token_error;
+                    memset(&access_token_error, 0, sizeof(access_token_error));
+                    access_token_error.error = OpenAPI_access_token_err_ERROR_invalid_scope;
+                
+                    sendmsg.AccessTokenError = &access_token_error;
+                
+                    response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                    ogs_assert(response);
+                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                    return false;
+                }
+                // if (current_service) {
+                //     bool permitted = false;
+                //     int j = 0;
+                //     for (j = 0; j < current_service->num_of_allowed_nf_type; j++) {
+                //         if (current_service->allowed_nf_type[j] == sub_nf_instance->nf_type) {
+                //             permitted = true;
+                //             break;
+                //         }
+                //     }
+                //     if (!permitted) {
+                //         ogs_error("NF [%s] of type [%s], requested access to service [%s] for NF type of [%s] which is not permitted", 
+                //             sub_nf_instance->id, OpenAPI_nf_type_ToString(sub_nf_instance->nf_type),
+                //             current_scope, OpenAPI_nf_type_ToString(target_nf_instance->nf_type)
+                //         );
+                //         OpenAPI_access_token_err_t access_token_error;
+                //         memset(&access_token_error, 0, sizeof(access_token_error));
+                //         access_token_error.error = OpenAPI_access_token_err_ERROR_unauthorized_client;
+                //
+                //         sendmsg.AccessTokenError = &access_token_error;
+                //
+                //         response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                //         ogs_assert(response);
+                //         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                //         return false;
+                //     } else {
+                //         ogs_info("NF [%s] request for a token for service [%s] at NF [%s]", sub_nf_instance->id, current_service->name, target_nf_instance->id);
+                //     }
+                // } else {
+                //     ogs_error("NF [%s] of type [%s], does not support service [%s]", target_nf_instance->id, OpenAPI_nf_type_ToString(target_nf_instance->nf_type), current_scope);
+                //     OpenAPI_access_token_err_t access_token_error;
+                //     memset(&access_token_error, 0, sizeof(access_token_error));
+                //     access_token_error.error = OpenAPI_access_token_err_ERROR_invalid_scope;
+                //
+                //     sendmsg.AccessTokenError = &access_token_error;
+                //
+                //     response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_BAD_REQUEST);
+                //     ogs_assert(response);
+                //     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                //     return false;
+                // }
             } else {
                 ogs_error("invalid scope");
                 OpenAPI_access_token_err_t access_token_error;
@@ -191,6 +302,10 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
                 return false;
             }
         }
+        for (i = 0; i < n; i++)
+            if (splitted_scopes[i])
+                ogs_free(splitted_scopes[i]);
+        ogs_free(splitted_scopes);
     } else {
         ogs_error("either unable to parse the scope or the scope is empty");
         OpenAPI_access_token_err_t access_token_error;
@@ -209,7 +324,7 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     char* token = get_token_from_claim(
         ogs_sbi_self()->nf_instance->id,
         sub_nf_instance->id,
-        OpenAPI_nf_type_ToString(target_nf_instance->nf_type),
+        OpenAPI_nf_type_ToString(target_nf_type),
         message.AccessTokenRequest->scope,
         OGS_OAUTH_TOKEN_ALG, &expires_in
     );
@@ -237,5 +352,7 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
     ogs_assert(response);
     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+    if (token)
+        ogs_free(token);
     return true;
 }

@@ -33,6 +33,8 @@ const char *OGS_TIMER_NAME_SUBSCRIPTION_PATCH =
     "OGS_TIMER_SUBSCRIPTION_PATCH";
 const char *OGS_TIMER_NAME_SBI_CLIENT_WAIT =
     "OGS_TIMER_SBI_CLIENT_WAIT";
+const char *OGS_TIMER_NAME_TOKEN_FETCH_INTERVAL =
+    "OGS_TIMER_TOKEN_FETCH_INTERVAL";
 
 const char *ogs_timer_get_name(int timer_id)
 {
@@ -51,6 +53,8 @@ const char *ogs_timer_get_name(int timer_id)
         return OGS_TIMER_NAME_SUBSCRIPTION_PATCH;
     case OGS_TIMER_SBI_CLIENT_WAIT:
         return OGS_TIMER_NAME_SBI_CLIENT_WAIT;
+    case OGS_TIMER_TOKEN_FETCH_INTERVAL:
+        return OGS_TIMER_NAME_TOKEN_FETCH_INTERVAL;
     default: 
        break;
     }

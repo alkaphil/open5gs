@@ -282,6 +282,15 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
         }
 
         SWITCH(message.h.service.name)
+        CASE(OGS_SBI_SERVICE_NAME_NNRF_OAUTH2)
+            nf_instance = e->h.sbi.data;
+            ogs_assert(nf_instance);
+            ogs_assert(OGS_FSM_STATE(&nf_instance->sm));
+
+            e->h.sbi.message = &message;
+            ogs_fsm_dispatch(&nf_instance->sm, e);
+            break;
+
         CASE(OGS_SBI_SERVICE_NAME_NNRF_NFM)
 
             SWITCH(message.h.resource.component[0])
@@ -505,6 +514,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
         ogs_assert(e);
 
         switch(e->h.timer_id) {
+        case OGS_TIMER_TOKEN_FETCH_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_REGISTRATION_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_HEARTBEAT_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_NO_HEARTBEAT:

@@ -161,6 +161,9 @@ void ogs_sbi_nf_state_initial(ogs_fsm_t *s, ogs_event_t *e)
     nf_instance->t_validity = ogs_timer_add(ogs_app()->timer_mgr,
             ogs_timer_nf_instance_validity, nf_instance);
     ogs_assert(nf_instance->t_validity);
+    nf_instance->t_token = ogs_timer_add(ogs_app()->timer_mgr,
+            ogs_timer_token_fetched_interval, nf_instance);
+    ogs_assert(nf_instance->t_token);
 
     if (NF_INSTANCE_TYPE_IS_NRF(nf_instance)) {
         OGS_FSM_TRAN(s, &ogs_sbi_nf_state_will_register);
@@ -275,6 +278,61 @@ void ogs_sbi_nf_state_will_register(ogs_fsm_t *s, ogs_event_t *e)
     }
 }
 
+void ogs_sbi_nf_state_registered_awaiting_token(ogs_fsm_t *s, ogs_event_t *e) {
+    ogs_sbi_nf_instance_t *nf_instance = NULL;
+    ogs_sbi_message_t *message = NULL;
+
+    ogs_assert(s);
+    ogs_assert(e);
+
+    ogs_sbi_sm_debug(e);
+
+    nf_instance = e->sbi.data;
+    ogs_assert(nf_instance);
+    ogs_assert(!NF_INSTANCE_TYPE_IS_NRF(nf_instance));
+    switch (e->id) {
+    case OGS_FSM_ENTRY_SIG:
+
+        break;
+
+    case OGS_FSM_EXIT_SIG:
+        // we might need to erease already fetched tokens
+        break;
+
+    case OGS_EVENT_SBI_CLIENT:
+        message = e->sbi.message;
+        ogs_assert(message);
+        // TODO: handle fetched token and request for the next one
+        //      ogs_sbi_self()->current_token_idx shows the current idx which is awaiting for token
+        //      if a token has been received for ogs_sbi_self()->current_token_idx NF, we should
+        //      ogs_sbi_self()->current_token_idx++ and request for the next one.
+        //          if ogs_sbi_self()->current_token_idx == 8; then wer are done here and should
+        //          move one to the next state (ogs_sbi_nf_state_registered)
+        ogs_info("==== Recevied response [%s]", message->AccessTokenResponse->access_token);
+        OGS_FSM_TRAN(s, &ogs_sbi_nf_state_registered);
+        break;
+
+    case OGS_EVENT_SBI_TIMER:
+        // TODO: start sending requests for tokens sequentially and STOP this timer
+        switch(e->timer_id) {
+        case OGS_TIMER_TOKEN_FETCH_INTERVAL:
+        default:
+            ogs_error("[%s] Unknown timer [type:%s timer:%s:%d]",
+                    nf_instance->id ? nf_instance->id : "Undefined",
+                    OpenAPI_nf_type_ToString(nf_instance->nf_type),
+                    ogs_timer_get_name(e->timer_id), e->timer_id);
+        }
+        break;
+
+    default:
+        ogs_error("[%s] Unknown event [type:%s event:%s]",
+                nf_instance->id ? nf_instance->id : "Undefined",
+                OpenAPI_nf_type_ToString(nf_instance->nf_type),
+                ogs_event_get_name(e));
+        break;
+    }
+}
+
 void ogs_sbi_nf_state_registered(ogs_fsm_t *s, ogs_event_t *e)
 {
     ogs_sbi_nf_instance_t *nf_instance = NULL;
@@ -316,6 +374,10 @@ void ogs_sbi_nf_state_registered(ogs_fsm_t *s, ogs_event_t *e)
             }
 
             ogs_nnrf_nfm_send_nf_list_retrieve();
+        } else {
+            // TODO: set timer for a small interval to start requesting for token for each NF sequentially
+            ogs_timer_start(nf_instance->t_token, ogs_time_from_sec(2));
+            ogs_info("started timer at ogs_sbi_nf_state_registered");
         }
         break;
 
@@ -409,6 +471,22 @@ void ogs_sbi_nf_state_registered(ogs_fsm_t *s, ogs_event_t *e)
                         message->h.resource.component[0]);
             END
             break;
+        
+        CASE(OGS_SBI_SERVICE_NAME_NNRF_OAUTH2)
+            // TODO: handle fetched token and request for the next one
+            //      ogs_sbi_self()->current_token_idx shows the current idx which is awaiting for token
+            //      if a token has been received for ogs_sbi_self()->current_token_idx NF, we should
+            //      ogs_sbi_self()->current_token_idx++ and request for the next one.
+            //          if ogs_sbi_self()->current_token_idx == 8; then wer are done here and should
+            //          move one to the next state (ogs_sbi_nf_state_registered)
+            
+            if (message->AccessTokenResponse->scope && message->AccessTokenResponse->access_token) {
+                ogs_sbi_token_add_or_update(message->AccessTokenResponse->scope, ogs_strdup(message->AccessTokenResponse->access_token));
+                char* saved_token = ogs_sbi_token_find_by_scope(message->AccessTokenResponse->scope);
+                ogs_assert(saved_token);
+                ogs_info("[%s] Recevied token for [%s]", ogs_sbi_self()->nf_instance->id, message->AccessTokenResponse->scope);
+            }
+            break;
 
         DEFAULT
             ogs_error("[%s] Invalid API name [%s]",
@@ -443,6 +521,20 @@ void ogs_sbi_nf_state_registered(ogs_fsm_t *s, ogs_event_t *e)
                     nf_instance->id,
                     OpenAPI_nf_type_ToString(nf_instance->nf_type));
             OGS_FSM_TRAN(s, &ogs_sbi_nf_state_de_registered);
+            break;
+        
+        case OGS_TIMER_TOKEN_FETCH_INTERVAL:
+            ogs_timer_stop(nf_instance->t_token);
+            ogs_sbi_subscription_spec_t *subscription_spec = NULL;
+            ogs_list_for_each(
+                &ogs_sbi_self()->subscription_spec_list, subscription_spec) {
+                // TODO: we should also handle the case for SEPP which in,
+                //      the subscription_spec->subscr_cond.service_name is NULL
+                if (subscription_spec->subscr_cond.nf_type != OpenAPI_nf_type_SEPP)
+                    ogs_oauth2_send_access_token_request(ogs_sbi_self()->nf_instance->id, 
+                            subscription_spec->subscr_cond.nf_type,
+                            subscription_spec->subscr_cond.service_name);
+            }
             break;
 
         default:

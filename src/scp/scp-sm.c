@@ -239,6 +239,7 @@ void scp_state_operational(ogs_fsm_t *s, scp_event_t *e)
         ogs_assert(e);
 
         switch(e->h.timer_id) {
+        case OGS_TIMER_TOKEN_FETCH_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_REGISTRATION_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_HEARTBEAT_INTERVAL:
         case OGS_TIMER_NF_INSTANCE_NO_HEARTBEAT:

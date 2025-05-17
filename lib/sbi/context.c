@@ -89,6 +89,9 @@ void ogs_sbi_context_init(OpenAPI_nf_type_e nf_type)
         ogs_sbi_nf_instance_set_type(self.scp_instance, OpenAPI_nf_type_SCP);
     }
 
+    self.token_list = ogs_hash_make();
+    ogs_assert(self.token_list);
+
     context_initialized = 1;
 }
 
@@ -112,6 +115,9 @@ void ogs_sbi_context_final(void)
     ogs_pool_final(&amf_info_pool);
 
     ogs_pool_final(&nf_info_pool);
+
+    ogs_assert(self.token_list);
+    ogs_hash_destroy(self.token_list);
 
     ogs_sbi_client_final();
     ogs_sbi_server_final();
@@ -2880,4 +2886,24 @@ void ogs_sbi_keylog_callback(const SSL *ssl, const char *line)
     } else {
         ogs_error("Failed to open SSL key log file: %s", sslkeylog_file);
     }
+}
+
+char* ogs_sbi_token_find_by_scope(char* scope) {
+    if (!scope)
+        return NULL;
+    
+    return (char*)ogs_hash_get(self.token_list, scope, strlen(scope));
+}
+
+bool ogs_sbi_token_add_or_update(char* scope, char* token) {
+    if (!scope || strlen(scope) == 0)
+        return false;
+    if (!token || strlen(token) == 0)
+        return false;
+    char* prev_token = ogs_sbi_token_find_by_scope(scope);
+    ogs_hash_set(self.token_list, scope, strlen(scope), token);
+    if (prev_token) {
+        ogs_free(prev_token);
+    }
+    return true;
 }

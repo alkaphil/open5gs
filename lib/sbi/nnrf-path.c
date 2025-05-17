@@ -222,3 +222,25 @@ bool ogs_nnrf_nfm_send_nf_profile_get(char *nf_instance_id)
 
     return rc;
 }
+
+bool ogs_oauth2_send_access_token_request(char *nf_instance_id, OpenAPI_nf_type_e target_nf_type, char* scope)
+{
+    bool rc;
+    ogs_sbi_request_t *request = NULL;
+
+    request = ogs_ouath2_build_access_token_request(nf_instance_id, target_nf_type, scope);
+
+    if (!request) {
+        ogs_error("No Request");
+        return false;
+    }
+
+    rc = ogs_sbi_send_request_to_nrf(
+            OGS_SBI_SERVICE_TYPE_NNRF_OAUTH2, NULL,
+            ogs_sbi_client_handler, request, ogs_sbi_self()->nf_instance);
+    ogs_expect(rc == true);
+
+    ogs_sbi_request_free(request);
+
+    return rc;
+}

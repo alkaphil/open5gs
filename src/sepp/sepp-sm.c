@@ -101,6 +101,15 @@ void sepp_state_operational(ogs_fsm_t *s, sepp_event_t *e)
         }
 
         SWITCH(message.h.service.name)
+        CASE(OGS_SBI_SERVICE_NAME_NNRF_OAUTH2)
+            nf_instance = e->h.sbi.data;
+            ogs_assert(nf_instance);
+            ogs_assert(OGS_FSM_STATE(&nf_instance->sm));
+
+            e->h.sbi.message = &message;
+            ogs_fsm_dispatch(&nf_instance->sm, e);
+            break;
+
         CASE(OGS_SBI_SERVICE_NAME_NNRF_NFM)
             if (server->interface &&
                 strcmp(server->interface, OGS_SBI_INTERFACE_NAME_SEPP) == 0) {

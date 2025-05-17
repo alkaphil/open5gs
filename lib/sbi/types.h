@@ -100,7 +100,7 @@ typedef enum {
 
 #define OGS_SBI_SERVICE_NAME_NNRF_NFM "nnrf-nfm"
 #define OGS_SBI_SERVICE_NAME_NNRF_DISC "nnrf-disc"
-#define OGS_SBI_SERVICE_NAME_NNRF_OAUTH2 "nnrf-oauth2"
+#define OGS_SBI_SERVICE_NAME_NNRF_OAUTH2 "oauth2"
 #define OGS_SBI_SERVICE_NAME_NUDM_SDM "nudm-sdm"
 #define OGS_SBI_SERVICE_NAME_NUDM_UECM "nudm-uecm"
 #define OGS_SBI_SERVICE_NAME_NUDM_UEAU "nudm-ueau"

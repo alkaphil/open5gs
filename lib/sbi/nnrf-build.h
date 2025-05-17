@@ -49,6 +49,11 @@ ogs_sbi_request_t *ogs_nnrf_disc_build_discover(
         OpenAPI_nf_type_e requester_nf_type,
         ogs_sbi_discovery_option_t *discovery_option);
 
+ogs_sbi_request_t *ogs_ouath2_build_access_token_request(
+        char *nf_instance_id,
+        OpenAPI_nf_type_e target_nf_type,
+        char* scope);
+
 #ifdef __cplusplus
 }
 #endif

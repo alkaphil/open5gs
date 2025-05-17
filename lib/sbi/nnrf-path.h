@@ -44,6 +44,8 @@ bool ogs_nnrf_nfm_send_to_nrf(
         ogs_sbi_client_t *client, ogs_sbi_client_cb_f client_cb,
         ogs_sbi_request_t *request, void *data);
 
+bool ogs_oauth2_send_access_token_request(char *nf_instance_id, OpenAPI_nf_type_e target_nf_type, char* scope);
+
 #ifdef __cplusplus
 }
 #endif

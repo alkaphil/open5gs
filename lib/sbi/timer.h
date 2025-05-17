@@ -35,6 +35,7 @@ void ogs_timer_nf_instance_validity(void *data);
 void ogs_timer_subscription_validity(void *data);
 void ogs_timer_subscription_patch(void *data);
 void ogs_timer_sbi_client_wait_expire(void *data);
+void ogs_timer_token_fetched_interval(void *data);
 
 #ifdef __cplusplus
 }

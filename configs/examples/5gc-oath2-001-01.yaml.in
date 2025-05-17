@@ -1,20 +1,21 @@
 db_uri: mongodb://localhost/open5gs
 
 logger:
+  level: info
 
 global:
   parameter:
     # no_nrf: true
-    # no_scp: true
+    no_scp: true
     no_sepp: true
     # no_amf: true
-    no_smf: true
-    no_upf: true
-    no_ausf: true
+    # no_smf: true
+    # no_upf: true
+    # no_ausf: true
     # no_udm: true
-    no_pcf: true
-    no_nssf: true
-    no_bsf: true
+    # no_pcf: true
+    # no_nssf: true
+    # no_bsf: true
     # no_udr: true
     no_mme: true
     no_sgwc: true
@@ -22,70 +23,70 @@ global:
     no_pcrf: true
     no_hss: true
 
-mme:
-  freeDiameter:
-    identity: mme.localdomain
-    realm: localdomain
-    listen_on: 127.0.2.2
-    no_fwd: true
-    load_extension:
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
-        conf: 0x8888
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
-    connect:
-      - identity: hss.localdomain
-        address: 127.0.2.8
+# mme:
+#   freeDiameter:
+#     identity: mme.localdomain
+#     realm: localdomain
+#     listen_on: 127.0.2.2
+#     no_fwd: true
+#     load_extension:
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
+#         conf: 0x8888
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
+#     connect:
+#       - identity: hss.localdomain
+#         address: 127.0.2.8
 
-  s1ap:
-    server:
-      - address: 127.0.2.2
-  gtpc:
-    server:
-      - address: 127.0.2.2
-    client:
-      sgwc:
-        - address: 127.0.2.3
-      smf:
-        - address: 127.0.2.4
-  metrics:
-    server:
-      - address: 127.0.2.2
-        port: 9090
-  gummei:
-    - plmn_id:
-        mcc: 001
-        mnc: 01
-      mme_gid: 2
-      mme_code: 1
-  tai:
-    - plmn_id:
-        mcc: 001
-        mnc: 01
-      tac: 1
-  security:
-    integrity_order : [ EIA2, EIA1, EIA0 ]
-    ciphering_order : [ EEA0, EEA1, EEA2 ]
-  network_name:
-    full: Open5GS
-  time:
-    t3412:
-      value: 3240
+#   s1ap:
+#     server:
+#       - address: 127.0.2.2
+#   gtpc:
+#     server:
+#       - address: 127.0.2.2
+#     client:
+#       sgwc:
+#         - address: 127.0.2.3
+#       smf:
+#         - address: 127.0.2.4
+#   metrics:
+#     server:
+#       - address: 127.0.2.2
+#         port: 9090
+#   gummei:
+#     - plmn_id:
+#         mcc: 001
+#         mnc: 01
+#       mme_gid: 2
+#       mme_code: 1
+#   tai:
+#     - plmn_id:
+#         mcc: 001
+#         mnc: 01
+#       tac: 1
+#   security:
+#     integrity_order : [ EIA2, EIA1, EIA0 ]
+#     ciphering_order : [ EEA0, EEA1, EEA2 ]
+#   network_name:
+#     full: Open5GS
+#   time:
+#     t3412:
+#       value: 3240
 
-sgwc:
-  gtpc:
-    server:
-      - address: 127.0.2.3
-  pfcp:
-    server:
-      - address: 127.0.2.3
-    client:
-      sgwu:
-        - address: 127.0.2.6
+# sgwc:
+#   gtpc:
+#     server:
+#       - address: 127.0.2.3
+#   pfcp:
+#     server:
+#       - address: 127.0.2.3
+#     client:
+#       sgwu:
+#         - address: 127.0.2.6
 
 smf:
   sbi:
@@ -93,8 +94,10 @@ smf:
       - address: 127.0.2.4
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
   pfcp:
     server:
       - address: 127.0.2.4
@@ -146,8 +149,10 @@ amf:
       - address: 127.0.2.5
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
   ngap:
     server:
       - address: 127.0.2.5
@@ -157,14 +162,8 @@ amf:
         port: 9090
   access_control:
     - plmn_id:
-        mcc: 999
-        mnc: 70
-    - plmn_id:
         mcc: 001
         mnc: 01
-    - plmn_id:
-        mcc: 315
-        mnc: 010
   guami:
     - plmn_id:
         mcc: 001
@@ -193,13 +192,13 @@ amf:
     t3512:
       value: 540     # 9 mintues * 60 = 540 seconds
 
-sgwu:
-  pfcp:
-    server:
-      - address: 127.0.2.6
-  gtpu:
-    server:
-      - address: 127.0.2.6
+# sgwu:
+#   pfcp:
+#     server:
+#       - address: 127.0.2.6
+#   gtpu:
+#     server:
+#       - address: 127.0.2.6
 
 upf:
   pfcp:
@@ -220,42 +219,42 @@ upf:
       - address: 127.0.2.7
         port: 9090
 
-hss:
-  freeDiameter:
-    identity: hss.localdomain
-    realm: localdomain
-    listen_on: 127.0.2.8
-    no_fwd: true
-    load_extension:
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
-        conf: 0x8888
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
-    connect:
-      - identity: mme.localdomain
-        address: 127.0.2.2
-pcrf:
-  freeDiameter:
-    identity: pcrf.localdomain
-    realm: localdomain
-    listen_on: 127.0.2.9
-    no_fwd: true
-    load_extension:
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
-        conf: 0x8888
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
-      - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
-    connect:
-      - identity: smf.localdomain
-        address: 127.0.2.4
+# hss:
+#   freeDiameter:
+#     identity: hss.localdomain
+#     realm: localdomain
+#     listen_on: 127.0.2.8
+#     no_fwd: true
+#     load_extension:
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
+#         conf: 0x8888
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
+#     connect:
+#       - identity: mme.localdomain
+#         address: 127.0.2.2
+# pcrf:
+#   freeDiameter:
+#     identity: pcrf.localdomain
+#     realm: localdomain
+#     listen_on: 127.0.2.9
+#     no_fwd: true
+#     load_extension:
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dbg_msg_dumps.fdx
+#         conf: 0x8888
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_rfc5777.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_mip6i.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nasreq.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_nas_mipv6.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca.fdx
+#       - module: @build_subprojects_freeDiameter_extensions_dir@/dict_dcca_3gpp/dict_dcca_3gpp.fdx
+#     connect:
+#       - identity: smf.localdomain
+#         address: 127.0.2.4
 
 nrf:
   default:
@@ -275,48 +274,48 @@ nrf:
 #        port: 7777
       - address: nrf.5gc.mnc001.mcc001.3gppnetwork.org
 
-scp:
-  sbi:
-    server:
-      - address: 127.0.2.200
-        port: 7777
-    client:
-      nrf:
-        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+# scp:
+#   sbi:
+#     server:
+#       - address: 127.0.2.200
+#         port: 7777
+#     client:
+#       nrf:
+#         - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
 
-sepp:
-  default:
-    tls:
-      server:
-        private_key: @build_configs_dir@/open5gs/tls/sepp2.key
-        cert: @build_configs_dir@/open5gs/tls/sepp2.crt
-      client:
-        cacert: @build_configs_dir@/open5gs/tls/ca.crt
-  sbi:
-    server:
-      - address: 127.0.2.250
-        port: 7777
-    client:
-      scp:
-        - uri: http://127.0.2.200:7777
-  n32:
-    server:
-      - sender: sepp2.localdomain
-        address: 127.0.2.251
-        port: 7777
-        n32f:
-          address: 127.0.2.252
-          port: 7777
-    client:
-      sepp:
-        - receiver: sepp1.localdomain
-          uri: http://127.0.1.251:7777
-          n32f:
-            uri: http://127.0.1.252:7777
-        - receiver: sepp3.localdomain
-          uri: http://127.0.3.251:7777
-          n32f:
-            uri: http://127.0.3.252:7777
+# sepp:
+#   default:
+#     tls:
+#       server:
+#         private_key: @build_configs_dir@/open5gs/tls/sepp2.key
+#         cert: @build_configs_dir@/open5gs/tls/sepp2.crt
+#       client:
+#         cacert: @build_configs_dir@/open5gs/tls/ca.crt
+#   sbi:
+#     server:
+#       - address: 127.0.2.250
+#         port: 7777
+#     client:
+#       scp:
+#         - uri: http://127.0.2.200:7777
+#   n32:
+#     server:
+#       - sender: sepp2.localdomain
+#         address: 127.0.2.251
+#         port: 7777
+#         n32f:
+#           address: 127.0.2.252
+#           port: 7777
+#     client:
+#       sepp:
+#         - receiver: sepp1.localdomain
+#           uri: http://127.0.1.251:7777
+#           n32f:
+#             uri: http://127.0.1.252:7777
+#         - receiver: sepp3.localdomain
+#           uri: http://127.0.3.251:7777
+#           n32f:
+#             uri: http://127.0.3.252:7777
 
 ausf:
   sbi:
@@ -325,8 +324,10 @@ ausf:
 #        port: 7777
       - address: ausf.5gc.mnc001.mcc001.3gppnetwork.org
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
 
 udm:
   hnet:
@@ -342,8 +343,10 @@ udm:
 #          port: 7777
       - address: udm.5gc.mnc001.mcc001.3gppnetwork.org
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
 
 pcf:
   sbi:
@@ -351,8 +354,10 @@ pcf:
       - address: 127.0.2.13
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
   metrics:
     server:
       - address: 127.0.2.13
@@ -442,8 +447,10 @@ nssf:
       - address: 127.0.2.14
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
       nsi:
         - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
           s_nssai:
@@ -454,8 +461,10 @@ bsf:
       - address: 127.0.2.15
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777
 
 udr:
   sbi:
@@ -463,5 +472,7 @@ udr:
       - address: 127.0.2.20
         port: 7777
     client:
-      scp:
-        - uri: http://127.0.2.200:7777
+      nrf:
+        - uri: http://nrf.5gc.mnc001.mcc001.3gppnetwork.org
+      # scp:
+      #   - uri: http://127.0.2.200:7777

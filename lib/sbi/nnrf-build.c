@@ -1847,3 +1847,36 @@ ogs_sbi_request_t *ogs_nnrf_disc_build_discover(
 
     return request;
 }
+
+ogs_sbi_request_t *ogs_ouath2_build_access_token_request(
+        char *nf_instance_id,
+        OpenAPI_nf_type_e target_nf_type,
+        char* scope)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_request_t *request = NULL;
+
+    ogs_assert(nf_instance_id);
+
+    memset(&message, 0, sizeof(message));
+    message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
+    message.h.service.name = (char *)OGS_SBI_SERVICE_NAME_OAUTH2;
+    message.h.api.version = (char *)OGS_SBI_API_V1;
+    // #gir
+    message.h.resource.component[0] =
+        (char *)OGS_SBI_RESOURCE_NAME_TOKEN;
+
+    message.AccessTokenRequest = OpenAPI_access_token_req_create(
+        OpenAPI_access_token_req_GRANTTYPE_client_credentials, nf_instance_id, OpenAPI_nf_type_NULL,
+        target_nf_type, scope, NULL, NULL, NULL, NULL, NULL, NULL, 
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    );
+
+    request = ogs_sbi_build_request(&message);
+
+    ogs_expect(request);
+
+    return request;
+}
+
+

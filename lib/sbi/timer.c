@@ -33,6 +33,7 @@ static void timer_send_event(int timer_id, void *data)
     case OGS_TIMER_SUBSCRIPTION_VALIDITY:
     case OGS_TIMER_SUBSCRIPTION_PATCH:
     case OGS_TIMER_SBI_CLIENT_WAIT:
+    case OGS_TIMER_TOKEN_FETCH_INTERVAL:
         e = ogs_event_new(OGS_EVENT_SBI_TIMER);
         ogs_assert(e);
         e->timer_id = timer_id;
@@ -85,4 +86,9 @@ void ogs_timer_subscription_patch(void *data)
 void ogs_timer_sbi_client_wait_expire(void *data)
 {
     timer_send_event(OGS_TIMER_SBI_CLIENT_WAIT, data);
+}
+
+void ogs_timer_token_fetched_interval(void *data)
+{
+    timer_send_event(OGS_TIMER_TOKEN_FETCH_INTERVAL, data);
 }

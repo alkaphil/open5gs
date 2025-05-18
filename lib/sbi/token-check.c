@@ -122,7 +122,6 @@ char *load_public_key_from_cert_file(const char *cert_file, size_t *len) {
 
 
 int check_token(char* token, char* service_name){
-    int ret = 0;
     const long leeway = 60;
     jwt_t *jwt = NULL;
     jwt_t *decoded_jwt = NULL;

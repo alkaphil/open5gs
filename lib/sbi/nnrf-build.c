@@ -1862,7 +1862,6 @@ ogs_sbi_request_t *ogs_ouath2_build_access_token_request(
     message.h.method = (char *)OGS_SBI_HTTP_METHOD_POST;
     message.h.service.name = (char *)OGS_SBI_SERVICE_NAME_OAUTH2;
     message.h.api.version = (char *)OGS_SBI_API_V1;
-    // #gir
     message.h.resource.component[0] =
         (char *)OGS_SBI_RESOURCE_NAME_TOKEN;
 

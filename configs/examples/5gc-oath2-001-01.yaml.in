@@ -90,6 +90,10 @@ global:
 
 smf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.4
         port: 7777
@@ -145,6 +149,10 @@ smf:
 
 amf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.5
         port: 7777
@@ -319,6 +327,10 @@ nrf:
 
 ausf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
 #      - address: 127.0.2.11
 #        port: 7777
@@ -338,6 +350,10 @@ udm:
       scheme: 2
       key: @build_configs_dir@/open5gs/hnet/secp256r1-2.key
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
 #        - address: 127.0.2.12
 #          port: 7777
@@ -350,6 +366,10 @@ udm:
 
 pcf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.13
         port: 7777
@@ -443,6 +463,10 @@ pcf:
                         unit: 1  # 0:bps, 1:Kbps, 2:Mbps, 3:Gbps, 4:Tbps
 nssf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.14
         port: 7777
@@ -457,6 +481,10 @@ nssf:
             sst: 1
 bsf:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.15
         port: 7777
@@ -468,6 +496,10 @@ bsf:
 
 udr:
   sbi:
+    oauth2:
+      enabled: false
+      refresh_rate: 10
+      initial_delay: 5
     server:
       - address: 127.0.2.20
         port: 7777

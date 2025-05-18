@@ -111,6 +111,9 @@ typedef struct ogs_sbi_context_s {
 
     ogs_hash_t *token_list;
     int current_token_idx;
+    int token_refresh;
+    bool oauth2_enabled;
+    int token_initial_delay;
 } ogs_sbi_context_t;
 
 typedef struct ogs_sbi_nf_instance_s {
@@ -402,6 +405,11 @@ typedef struct ogs_sbi_nf_info_s {
     };
 } ogs_sbi_nf_info_t;
 
+typedef struct ogs_sbi_token_s {
+    char* value;
+    char* type;
+} ogs_sbi_token_t;
+
 void ogs_sbi_context_init(OpenAPI_nf_type_e nf_type);
 void ogs_sbi_context_final(void);
 ogs_sbi_context_t *ogs_sbi_self(void);
@@ -616,8 +624,10 @@ bool ogs_sbi_fqdn_in_vplmn(char *fqdn);
 
 void ogs_sbi_keylog_callback(const SSL *ssl, const char *line);
 
-char* ogs_sbi_token_find_by_scope(char* scope);
-bool ogs_sbi_token_add_or_update(char* scope, char* token);
+ogs_sbi_token_t* ogs_sbi_token_find_by_scope(char* scope);
+ogs_sbi_token_t* ogs_sbi_token_add_or_update(char* scope, char* token, char* type);
+void ogs_sbi_token_remove(char *scope);
+void ogs_sbi_token_remove_all(void);
 
 #ifdef __cplusplus
 }

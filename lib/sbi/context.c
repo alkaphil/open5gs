@@ -99,6 +99,11 @@ void ogs_sbi_context_final(void)
 {
     ogs_assert(context_initialized == 1);
 
+    ogs_sbi_token_remove_all();
+
+    ogs_assert(self.token_list);
+    ogs_hash_destroy(self.token_list);
+
     ogs_sbi_subscription_data_remove_all();
     ogs_pool_final(&subscription_data_pool);
 
@@ -115,9 +120,6 @@ void ogs_sbi_context_final(void)
     ogs_pool_final(&amf_info_pool);
 
     ogs_pool_final(&nf_info_pool);
-
-    ogs_assert(self.token_list);
-    ogs_hash_destroy(self.token_list);
 
     ogs_sbi_client_final();
     ogs_sbi_server_final();
@@ -625,6 +627,30 @@ int ogs_sbi_context_parse_config(
                                         }
                                     }
                                 }
+                            }
+                        } else if (!strcmp(sbi_key, "oauth2")) {
+                            ogs_yaml_iter_t oauth2_iter;
+                            ogs_yaml_iter_recurse(&sbi_iter, &oauth2_iter);
+                            while (ogs_yaml_iter_next(&oauth2_iter)) {
+                                const char *oauth2_key = ogs_yaml_iter_key(&oauth2_iter);
+                                ogs_assert(oauth2_key);
+                                if (!strcmp(oauth2_key, "enabled")) {
+                                    const char *v = ogs_yaml_iter_value(&oauth2_iter);
+                                    if (strcmp(v, "true") == 0) {
+                                        self.oauth2_enabled = true;
+                                    } else {
+                                        self.oauth2_enabled = false;
+                                    }
+                                } else if (!strcmp(oauth2_key, "refresh_rate")) {
+                                    const char *v = ogs_yaml_iter_value(&oauth2_iter);
+                                    if (v)
+                                        self.token_refresh = atoi(v);
+                                } else if (!strcmp(oauth2_key, "initial_delay")) {
+                                    const char *v = ogs_yaml_iter_value(&oauth2_iter);
+                                    if (v)
+                                        self.token_initial_delay = atoi(v);
+                                } else
+                                    ogs_warn("unknown scheme `%s`", oauth2_key);
                             }
                         } else
                             ogs_warn("unknown key `%s`", sbi_key);
@@ -2888,22 +2914,54 @@ void ogs_sbi_keylog_callback(const SSL *ssl, const char *line)
     }
 }
 
-char* ogs_sbi_token_find_by_scope(char* scope) {
+ogs_sbi_token_t* ogs_sbi_token_find_by_scope(char* scope) {
     if (!scope)
         return NULL;
     
-    return (char*)ogs_hash_get(self.token_list, scope, strlen(scope));
+    return (ogs_sbi_token_t*)ogs_hash_get(self.token_list, scope, strlen(scope));
 }
 
-bool ogs_sbi_token_add_or_update(char* scope, char* token) {
+ogs_sbi_token_t* ogs_sbi_token_add_or_update(char* scope, char* token, char* type) {
     if (!scope || strlen(scope) == 0)
-        return false;
+        return NULL;
     if (!token || strlen(token) == 0)
-        return false;
-    char* prev_token = ogs_sbi_token_find_by_scope(scope);
-    ogs_hash_set(self.token_list, scope, strlen(scope), token);
+        return NULL;
+    if (!type || strlen(type) == 0)
+        return NULL;
+    ogs_sbi_token_t* prev_token = ogs_sbi_token_find_by_scope(scope);
+    ogs_sbi_token_t* new_token = ogs_malloc(sizeof(ogs_sbi_token_t));
+    new_token->value = ogs_strdup(token);
+    new_token->type = ogs_strdup(type);
+    ogs_hash_set(self.token_list, scope, strlen(scope), new_token);
     if (prev_token) {
+        if (prev_token->type)
+            ogs_free(prev_token->type);
+        if (prev_token->value)
+            ogs_free(prev_token->value);
         ogs_free(prev_token);
     }
-    return true;
+    return new_token;
+}
+
+void ogs_sbi_token_remove(char *scope) {
+    ogs_assert(scope);
+
+    ogs_sbi_token_t* prev_token = ogs_sbi_token_find_by_scope(scope);
+    ogs_hash_set(self.token_list, scope, strlen(scope), NULL);
+    if (prev_token) {
+        if (prev_token->type)
+            ogs_free(prev_token->type);
+        if (prev_token->value)
+            ogs_free(prev_token->value);
+        ogs_free(prev_token);
+    }
+}
+
+void ogs_sbi_token_remove_all(void) {
+    ogs_sbi_subscription_spec_t *current = NULL, *next = NULL;;
+
+    ogs_list_for_each_safe(&self.subscription_spec_list, next, current) {
+        if (current->subscr_cond.service_name && strlen(current->subscr_cond.service_name) > 0)
+            ogs_sbi_token_remove(current->subscr_cond.service_name);
+    }
 }

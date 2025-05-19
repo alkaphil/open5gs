@@ -805,6 +805,9 @@ ogs_sbi_response_t *ogs_sbi_build_response(
     if (message->http.cache_control)
         ogs_sbi_header_set(response->http.headers, "Cache-Control",
                 message->http.cache_control);
+    if (message->http.www_authenticate)
+        ogs_sbi_header_set(response->http.headers, "WWW-Authenticate",
+                message->http.www_authenticate);
 
     return response;
 }
@@ -1069,7 +1072,7 @@ int ogs_sbi_parse_request(
         } else if (!ogs_strcasecmp(ogs_hash_this_key(hi),
                     OGS_SBI_CUSTOM_CALLBACK)) {
             message->http.custom.callback = ogs_hash_this_val(hi);
-        } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_AUTHORIZATION)) {
+        } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_AUTHORIZATION) && ogs_sbi_self()->oauth2_enabled) {
             char* val = ogs_hash_this_val(hi);
             char* token = strstr(val, " ") + 1;
             if (!token) {
@@ -1083,24 +1086,20 @@ int ogs_sbi_parse_request(
             
             message->h.auth_type = OpenAPI_access_token_rsp_token_type_FromString(token_type);
             message->h.auth_token = ogs_strdup(token);
-            ogs_info("+++++++++++++token:=====================[%s]", token);
-        // } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_USER_AGENT)) {
-        //     char* val = ogs_hash_this_val(hi);
-        //     nf_type = OpenAPI_nf_type_FromString(val);
         }
     }
-
-
-    // ogs_sbi_self()->nrf_instance->id
-    // ogs_sbi_self()->nf_instance.id
-    // nf_type ?= OpenAPI_nf_type_NULL
-    // message->h.service.name
         
-    if (message->h.auth_token && message->h.service.name){
-        if (!check_token(message->h.auth_token, message->h.service.name)) {
-            ogs_error("Token NOT verifyed!");
+    if (ogs_sbi_self()->oauth2_enabled && strstr(message->h.service.name, "nnrf-") == NULL) {
+        if (message->h.auth_token && message->h.service.name){
+            if (!check_token(message->h.auth_token, message->h.service.name)) {
+                ogs_error("Token NOT verifyed!");
+                ogs_sbi_message_free(message);
+                return OGS_UNAUTHORIZED;
+            }
+        } else {
+            ogs_error("there is no token");
             ogs_sbi_message_free(message);
-            return OGS_ERROR;
+            return OGS_FORBIDDEN;
         }
     }
 

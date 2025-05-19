@@ -98,9 +98,16 @@ bool ogs_sbi_server_send_response(
 bool ogs_sbi_server_send_error(ogs_sbi_stream_t *stream,
         int status, ogs_sbi_message_t *message,
         const char *title, const char *detail, const char *cause);
+bool ogs_sbi_server_send_error_with_www_authenticate_header(ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_message_t *message,
+        const char *title, const char *detail, const char *cause,
+        const char *header_value);
 
 bool ogs_sbi_server_send_problem(
         ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem);
+bool ogs_sbi_server_send_problem_with_www_authenticate_header(
+        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem,
+        const char *header_value);
 
 ogs_sbi_server_t *ogs_sbi_server_from_stream(ogs_sbi_stream_t *stream);
 

@@ -144,9 +144,6 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
                     NULL));
             return false;
         }
-        ogs_info("message.AccessTokenRequest->target_nf_type [%s]", OpenAPI_nf_type_ToString(message.AccessTokenRequest->target_nf_type));
-        ogs_info("target_nf_instance->nf_type [%s]", OpenAPI_nf_type_ToString(target_nf_instance->nf_type));
-        ogs_info("target_nf_type [%s]", OpenAPI_nf_type_ToString(target_nf_type));
 
         if (target_nf_type == OpenAPI_nf_type_NULL){
             target_nf_type = target_nf_instance->nf_type;

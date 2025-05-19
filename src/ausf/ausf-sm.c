@@ -78,7 +78,21 @@ void ausf_state_operational(ogs_fsm_t *s, ausf_event_t *e)
         }
 
         rv = ogs_sbi_parse_request(&message, request);
-        if (rv != OGS_OK) {
+        if (rv == OGS_FORBIDDEN) {
+            ogs_error("no token provided");
+            ogs_assert(true ==
+                ogs_sbi_server_send_error_with_www_authenticate_header(
+                    stream, OGS_SBI_HTTP_STATUS_FORBIDDEN,
+                    NULL, "no token provided", NULL, NULL,
+                    "Bearer"));
+        } else if (rv == OGS_UNAUTHORIZED) {
+            ogs_error("invalid token");
+            ogs_assert(true ==
+                ogs_sbi_server_send_error_with_www_authenticate_header(
+                    stream, OGS_SBI_HTTP_STATUS_UNAUTHORIZED,
+                    NULL, "invalid token", NULL, NULL,
+                    "Bearer"));
+        } else if (rv != OGS_OK) {
             /* 'message' buffer is released in ogs_sbi_parse_request() */
             ogs_error("cannot parse HTTP message");
             ogs_assert(true ==

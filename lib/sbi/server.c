@@ -206,6 +206,30 @@ bool ogs_sbi_server_send_problem(
     return true;
 }
 
+bool ogs_sbi_server_send_problem_with_www_authenticate_header(
+        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem,
+        const char *header_value)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_response_t *response = NULL;
+
+    ogs_assert(stream);
+    ogs_assert(problem);
+
+    memset(&message, 0, sizeof(message));
+
+    message.http.content_type = (char*)"application/problem+json";
+    message.http.www_authenticate = header_value;
+    message.ProblemDetails = problem;
+
+    response = ogs_sbi_build_response(&message, problem->status);
+    ogs_assert(response);
+
+    ogs_sbi_server_send_response(stream, response);
+
+    return true;
+}
+
 bool ogs_sbi_server_send_error(ogs_sbi_stream_t *stream,
         int status, ogs_sbi_message_t *message,
         const char *title, const char *detail, const char *cause)
@@ -238,6 +262,48 @@ bool ogs_sbi_server_send_error(ogs_sbi_stream_t *stream,
     problem.cause = (char*)cause;
 
     ogs_sbi_server_send_problem(stream, &problem);
+
+    if (problem.type)
+        ogs_free(problem.type);
+    if (problem.instance)
+        ogs_free(problem.instance);
+
+    return true;
+}
+
+bool ogs_sbi_server_send_error_with_www_authenticate_header(ogs_sbi_stream_t *stream,
+        int status, ogs_sbi_message_t *message,
+        const char *title, const char *detail, const char *cause,
+        const char *header_value)
+{
+    OpenAPI_problem_details_t problem;
+
+    ogs_assert(stream);
+
+    memset(&problem, 0, sizeof(problem));
+
+    if (message) {
+        problem.type = ogs_msprintf("/%s/%s",
+                message->h.service.name, message->h.api.version);
+        ogs_expect(problem.type);
+        if (message->h.resource.component[1])
+            problem.instance = ogs_msprintf("/%s/%s",
+                    message->h.resource.component[0],
+                    message->h.resource.component[1]);
+        else
+            problem.instance =
+                    ogs_msprintf("/%s", message->h.resource.component[0]);
+        ogs_expect(problem.instance);
+    }
+    if (status) {
+        problem.is_status = true;
+        problem.status = status;
+    }
+    problem.title = (char*)title;
+    problem.detail = (char*)detail;
+    problem.cause = (char*)cause;
+
+    ogs_sbi_server_send_problem_with_www_authenticate_header(stream, &problem, header_value);
 
     if (problem.type)
         ogs_free(problem.type);

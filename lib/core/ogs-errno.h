@@ -74,12 +74,14 @@ typedef int ogs_err_t;
 
 #endif
 
-#define OGS_OK           0
-#define OGS_ERROR       -1
-#define OGS_RETRY       -2
-#define OGS_TIMEUP      -3
-#define OGS_DONE        -4
-#define OGS_NOTFOUND    -5
+#define OGS_OK             0
+#define OGS_ERROR         -1
+#define OGS_RETRY         -2
+#define OGS_TIMEUP        -3
+#define OGS_DONE          -4
+#define OGS_NOTFOUND      -5
+#define OGS_UNAUTHORIZED  -6
+#define OGS_FORBIDDEN     -7
 
 char *ogs_strerror(ogs_err_t err, char *buf, size_t size);
 

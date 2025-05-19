@@ -483,6 +483,7 @@ typedef struct ogs_sbi_message_s {
         char *content_type;
         char *location;
         char *cache_control;
+        char* www_authenticate;
 
         struct {
             char *callback;

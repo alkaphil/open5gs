@@ -320,7 +320,7 @@ void ogs_sbi_nf_state_registered(ogs_fsm_t *s, ogs_event_t *e)
 
             ogs_nnrf_nfm_send_nf_list_retrieve();
         } else {
-            if (ogs_sbi_self()->oauth2_enabled) {
+            if (ogs_sbi_self()->oauth2_enabled && (ogs_sbi_self()->scp_instance == NULL || ogs_sbi_self()->scp_instance->client == NULL)) {
                 if (ogs_sbi_self()->token_initial_delay)
                     ogs_timer_start(nf_instance->t_token, ogs_time_from_sec(ogs_sbi_self()->token_initial_delay));
                 else

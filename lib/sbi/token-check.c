@@ -119,9 +119,7 @@ char *load_public_key_from_cert_file(const char *cert_file, size_t *len) {
     return key_str;
 }
 
-
-
-int check_token(char* token, char* service_name){
+int verify_token_producer(char* token, OpenAPI_nf_type_e nf_type, char* service_name){
     const long leeway = 60;
     jwt_t *jwt = NULL;
     jwt_t *decoded_jwt = NULL;
@@ -129,6 +127,9 @@ int check_token(char* token, char* service_name){
     char *cert = NULL;
     char *scope = NULL;
 
+    // TODO: 1- This load block should be moved to a separated init phase
+    // TODO: 2- There should be a struct to store this cert after init phase
+    // TODO: 3- This cert path should be read from the config file 
     // Load the certificate from file (used for token verification)
     cert = load_public_key_from_cert_file("./build/configs/open5gs/tls/nrf.crt", &cert_len);
     if (!cert) {
@@ -149,12 +150,52 @@ int check_token(char* token, char* service_name){
             ogs_error("token expired");
             return false;
         }
-        else{
-            scope = ogs_strdup(jwt_get_grant(decoded_jwt, "scope"));
-  
-            if (!ogs_find_string(scope, ' ', service_name)){
+        else {
+            if (OpenAPI_nf_type_FromString(jwt_get_grant(decoded_jwt, "aud")) != nf_type) {
+                ogs_error("audience dose not match");
                 return false;
             }
+            else{
+                scope = ogs_strdup(jwt_get_grant(decoded_jwt, "scope"));
+    
+                if (!ogs_find_string(scope, ' ', service_name)){
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Clean up all allocated memory and JWT objects
+    free(cert);
+    jwt_free(jwt);
+    if (decoded_jwt)
+        jwt_free(decoded_jwt);
+
+    return true;
+}
+
+int verify_token_consumer(char* token){
+    jwt_t *jwt = NULL;
+    jwt_t *decoded_jwt = NULL;
+    size_t cert_len = 0;
+    char *cert = NULL;
+
+
+    // TODO: initial the cert file 
+    // Load the certificate from file (used for token verification)
+    cert = load_public_key_from_cert_file("./build/configs/open5gs/tls/nrf.crt", &cert_len);
+    ogs_assert(cert);
+
+
+    // Decode (verify) the token by providing the certificate.
+    // The certificate must be a valid PEM-encoded X.509 certificate containing the public key.
+    if (jwt_decode(&decoded_jwt, token, cert, cert_len) != 0) {
+        return false;
+    } else {
+        // On successful verification, retrieve and display the issuer claim.
+        long expires_in = jwt_get_grant_int(decoded_jwt, "exp");
+        if (time(NULL) > expires_in) {
+            return false;
         }
     }
 

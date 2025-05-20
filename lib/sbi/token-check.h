@@ -17,7 +17,8 @@ extern "C" {
 int ogs_num_delimeter2(const char* s, const char deli);
 int ogs_find_string(const char* s,const char deli, const char* service_name);
 char *load_public_key_from_cert_file(const char *cert_file, size_t *len);
-int check_token(char*, char*);
+int verify_token_producer(char* token, OpenAPI_nf_type_e nf_type, char* service_name);
+int verify_token_consumer(char* token);
 #ifdef __cplusplus
 }
 #endif

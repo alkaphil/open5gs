@@ -386,14 +386,22 @@ ogs_sbi_request_t *ogs_sbi_build_request(ogs_sbi_message_t *message)
             OpenAPI_nf_type_e target_nf_type = ogs_sbi_service_type_to_nf_type(service_type);
             if (target_nf_type != OpenAPI_nf_type_NRF){
                 ogs_sbi_token_t* token = ogs_sbi_token_find_by_scope(message->h.service.name);
-                // TODO: error
-                ogs_assert(token);
-                char* auth_header = ogs_malloc(strlen(token->type) + strlen(token->value) + 2);
-                memset(auth_header, 0 , strlen(token->type) + strlen(token->value) + 2);
-                strncpy(auth_header, token->type, strlen(token->type));
-                auth_header[strlen(token->type)] = ' ';
-                strncpy(auth_header + strlen(token->type) + 1, token->value, strlen(token->value));
-                ogs_sbi_header_set(request->http.headers, OGS_SBI_AUTHORIZATION, auth_header);
+                bool should_send = token != NULL;
+                if (token != NULL && (ogs_sbi_self()->scp_instance != NULL && ogs_sbi_self()->scp_instance->client != NULL))
+                    should_send = verify_token_consumer(token->value);
+
+                if (should_send) {
+                    char* auth_header = ogs_malloc(strlen(token->type) + strlen(token->value) + 2);
+                    memset(auth_header, 0 , strlen(token->type) + strlen(token->value) + 2);
+                    strncpy(auth_header, token->type, strlen(token->type));
+                    auth_header[strlen(token->type)] = ' ';
+                    strncpy(auth_header + strlen(token->type) + 1, token->value, strlen(token->value));
+                    ogs_sbi_header_set(request->http.headers, OGS_SBI_AUTHORIZATION, auth_header);
+                } else if (ogs_sbi_self()->scp_instance == NULL || ogs_sbi_self()->scp_instance->client == NULL) {
+                    ogs_error("Token not found");
+                    ogs_sbi_request_free(request);
+                    return NULL;
+                }
             }
         }
     }
@@ -1091,8 +1099,9 @@ int ogs_sbi_parse_request(
         
     if (ogs_sbi_self()->oauth2_enabled && strstr(message->h.service.name, "nnrf-") == NULL) {
         if (message->h.auth_token && message->h.service.name){
-            if (!check_token(message->h.auth_token, message->h.service.name)) {
-                ogs_error("Token NOT verifyed!");
+            ogs_assert(ogs_sbi_self()->nf_instance);
+            if (!verify_token_producer(message->h.auth_token, ogs_sbi_self()->nf_instance->nf_type, message->h.service.name)) {
+                ogs_error("Token NOT valid");
                 ogs_sbi_message_free(message);
                 return OGS_UNAUTHORIZED;
             }

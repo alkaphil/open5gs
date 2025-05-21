@@ -1,7 +1,7 @@
 #include "token-check.h"
 
 
-int ogs_num_delimeter2(const char* s, const char deli) {
+int ogs_num_delimeter(const char* s, const char deli) {
     if (s == NULL)
         return 0;
     if (strlen(s) <= 0) {
@@ -21,7 +21,7 @@ int ogs_find_string(const char* s,const char deli, const char* service_name) {
     if (s == NULL)
         return false;
     
-    int num = ogs_num_delimeter2(s, ' ');
+    int num = ogs_num_delimeter(s, ' ');
     if (num > 0) {
         splited_str = ogs_malloc(num * sizeof(char*));
     }
@@ -57,6 +57,42 @@ int ogs_find_string(const char* s,const char deli, const char* service_name) {
 
 
     return false;
+}
+
+char** ogs_sbi_split_str(const char* s, const char deli, int* num) {
+    char** splited_str = NULL;
+
+    if (s == NULL)
+        return splited_str;
+    
+    *num = ogs_num_delimeter(s, deli);
+    if (*num > 0) {
+        splited_str = ogs_malloc(*num * sizeof(char*));
+    }
+
+    int j = 0;
+    int last = 0;
+    int len = strlen(s);
+    int i = 0;
+    for (i = 0; s[i]; i++){
+        if (s[i] == deli) {
+            int diff = i - last;
+            char* temp = ogs_malloc(diff + 1);
+            memset(temp, 0, diff + 1);
+            memcpy(temp, &s[last], diff);
+            splited_str[j++] = temp;
+            last = i + 1;
+        }
+    }
+    if (last < len) {
+        int diff = len - last;
+        char* temp = ogs_malloc(diff + 1);
+        memset(temp, 0, diff + 1);
+        memcpy(temp, &s[last], diff + 1);
+        splited_str[j++] = temp;
+    }
+
+    return splited_str;
 }
 
 char *load_public_key_from_cert_file(const char *cert_file, size_t *len) {
@@ -206,4 +242,18 @@ int verify_token_consumer(char* token){
         jwt_free(decoded_jwt);
 
     return true;
+}
+
+char** extract_scope_from_token(char* token, int* n){
+    jwt_t *decoded_jwt = NULL;
+
+    if (jwt_decode(&decoded_jwt, token, NULL, 0) != 0) {
+        return NULL;
+    } else {
+        char* scope = jwt_get_grant(decoded_jwt, "scope");
+        if (decoded_jwt)
+            jwt_free(decoded_jwt);
+        
+        return ogs_sbi_split_str(scope, ' ', n);
+    }
 }

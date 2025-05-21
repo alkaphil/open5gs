@@ -1,56 +1,5 @@
 #include "oauth-handler.h"
 
-int ogs_num_delimeter(const char* s, const char deli) {
-    if (s == NULL)
-        return 0;
-    if (strlen(s) <= 0) {
-        return 0;
-    }
-    int n = 1;
-    int i = 0;
-    for (i = 0; s[i]; i++){
-        if (s[i] == deli)
-            n++;
-    }
-    return n;
-}
-
-char** ogs_split_str(const char* s, const char deli, int* num) {
-    char** splited_str = NULL;
-
-    if (s == NULL)
-        return splited_str;
-    
-    *num = ogs_num_delimeter(s, deli);
-    if (*num > 0) {
-        splited_str = ogs_malloc(*num * sizeof(char*));
-    }
-
-    int j = 0;
-    int last = 0;
-    int len = strlen(s);
-    int i = 0;
-    for (i = 0; s[i]; i++){
-        if (s[i] == deli) {
-            int diff = i - last;
-            char* temp = ogs_malloc(diff + 1);
-            memset(temp, 0, diff + 1);
-            memcpy(temp, &s[last], diff);
-            splited_str[j++] = temp;
-            last = i + 1;
-        }
-    }
-    if (last < len) {
-        int diff = len - last;
-        char* temp = ogs_malloc(diff + 1);
-        memset(temp, 0, diff + 1);
-        memcpy(temp, &s[last], diff + 1);
-        splited_str[j++] = temp;
-    }
-
-    return splited_str;
-}
-
 
 int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
     // char*  error_uri= "https://www.etsi.org/deliver/etsi_ts/129500_129599/129510/18.06.00_60/ts_129510v180600p.pdf";
@@ -162,7 +111,7 @@ int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream){
         
     }
     char* scope = message.AccessTokenRequest->scope;
-    char** splitted_scopes = ogs_split_str(scope, ' ', &n);
+    char** splitted_scopes = ogs_sbi_split_str(scope, ' ', &n);
     if (splitted_scopes) {
         if (target_nf_type == OpenAPI_nf_type_NULL){
             ogs_sbi_service_type_e first_scope = ogs_sbi_service_type_from_name(splitted_scopes[0]);

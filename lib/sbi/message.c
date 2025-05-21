@@ -401,6 +401,17 @@ ogs_sbi_request_t *ogs_sbi_build_request(ogs_sbi_message_t *message)
                     ogs_error("Token not found");
                     ogs_sbi_request_free(request);
                     return NULL;
+                } else {
+                    ogs_assert(ogs_sbi_self()->nf_instance);
+                    ogs_sbi_header_set(request->http.headers,
+                        OGS_SBI_CUSTOM_DISCOVERY_REQUESTER_NF_INSTANCE_ID,
+                        ogs_sbi_self()->nf_instance->id);
+                    ogs_sbi_header_set(request->http.headers,
+                        OGS_SBI_CUSTOM_ACCESS_SCOPE,
+                        message->h.service.name);
+                    ogs_sbi_header_set(request->http.headers,
+                        OGS_SBI_CUSTOM_DISCOVERY_TARGET_NF_TYPE,
+                        OpenAPI_nf_type_ToString(target_nf_type));
                 }
             }
         }
@@ -1142,6 +1153,34 @@ int ogs_sbi_parse_response(
             message->http.content_type = ogs_hash_this_val(hi);
         } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_LOCATION)) {
             message->http.location = ogs_hash_this_val(hi);
+        } else if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CUSTOM_ACCESS_TOKEN)) {
+            char* val = ogs_hash_this_val(hi);
+            char* token = strstr(val, " ") + 1;
+            if (!token) {
+                ogs_error("Header [%s] exists but there is not token found", OGS_SBI_CUSTOM_ACCESS_TOKEN);
+                ogs_sbi_message_free(message);
+                return OGS_ERROR;
+            }
+            char* token_type = ogs_malloc(sizeof(char) * ((token - val) + 1));
+            memset(token_type, 0, (token - val) + 1);
+            strncpy(token_type, val, token - val - 1);
+            int num_scopes = 0, i = 0;
+            char **scopes = extract_scope_from_token(token, &num_scopes);
+            if (scopes == NULL || num_scopes == 0) {
+                ogs_error("invalid token received in [%s] header", OGS_SBI_CUSTOM_ACCESS_TOKEN);
+            } else {
+                for (i = 0; i < num_scopes; i++) {   
+                    if (scopes[i] == NULL || ogs_sbi_service_type_from_name(scopes[i]) == OGS_SBI_SERVICE_TYPE_NULL) {
+                        ogs_error("invalid scope received in [%s] header", OGS_SBI_CUSTOM_ACCESS_TOKEN);
+                    } else if (ogs_sbi_token_add_or_update(scopes[i], token, token_type) == NULL) {
+                        ogs_error("invalid token received in [%s] header", OGS_SBI_CUSTOM_ACCESS_TOKEN);
+                    } else {
+                        ogs_info("[%s] Recevied token for [%s]", 
+                            NF_INSTANCE_ID(ogs_sbi_self()->nf_instance), scopes[i]
+                        );
+                    }
+                }
+            }
         }
     }
 

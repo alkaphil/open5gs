@@ -8,8 +8,6 @@
 extern "C" {
 #endif
 
-int ogs_num_delimeter(const char* s, const char deli);
-char** ogs_split_str(const char* s, const char deli, int* num);
 int oauth_handler(ogs_sbi_message_t message, ogs_sbi_stream_t *stream);
 
 #ifdef __cplusplus
